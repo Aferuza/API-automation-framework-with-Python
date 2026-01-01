@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Python cache
+pycache/
+*.pyc
+
+# Virtual environment
+venv/
+.venv/
+
+# IDE / Editor
+.vscode/
+.idea/
+__pycache__/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Pytest
+.pytest_cache/
+
+# Logs
+*.log
