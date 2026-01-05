@@ -7,7 +7,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_BASE_URL = os.getenv("API_BASE_URL")
-API_TOKEN = os.getenv("API_TOKEN")
+AUTH_TOKEN = os.getenv("AUTH_TOKEN")
+TIMEOUT = int(os.getenv("TIMEOUT",10))
 
-if not API_BASE_URL or not API_TOKEN:
-    raise RuntimeError("Missing API Configs")
+
+if not API_BASE_URL:
+    raise RuntimeError("API_BASE_URL is missing")
+
+if not AUTH_TOKEN:
+    raise RuntimeError("AUTH_TOKEN is missing")
+
+# print("Auth tok loaded:", bool(AUTH_TOKEN))
