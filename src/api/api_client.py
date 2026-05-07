@@ -1,71 +1,93 @@
-from datetime import time
-import requests
-from auth.auth_client import get_auth_headers
 from src.utils.config import API_BASE_URL, AUTH_TOKEN, TIMEOUT
 from src.utils.logger import logger
+import time
+import requests
+from src.auth.auth_client import get_auth_headers
+from src.utils.config import API_BASE_URL, TIMEOUT
+from src.utils.logger import logger
 
-#  All HTTP calls now automatically include auth, logging, response time, and structured output.
-# defines how requests are made.
-# The requests are executed when tests (or scripts) call its methods.
+
 class APIClient:
+    """test modules interact with the API through this class. wraps all HTTP requests with auth, logging, timing, and error handling."""
+
     def __init__(self):
         self.base_url = API_BASE_URL
-        self.headers = {
-            "Authorization": f"Bearer {AUTH_TOKEN}",
-            "Content-Type": "application/json"
+
+    def request(self, method: str, endpoint: str, json_body=None) -> dict:
+        """ executes all HTTP requests.  Called internally by get(), post(), patch(), delete()."""
+
+        # Combine base URL + endpoint path into the full request URL
+        url = f"{self.base_url}{endpoint}"
+
+        # Fetch auth headers fresh on every request and supports token rotation/refresh without restarting the client
+        headers = get_auth_headers()
+
+        # Record start time before the request is sent
+        start = time.time()
+
+        try:
+            response = requests.request(
+                method=method,
+                url=url,
+                headers=headers,
+                json=json_body,  # automatically sets Content-Type: application/json
+                timeout=TIMEOUT  # prevents tests hanging on unresponsive endpoints
+            )
+
+            # Raise immediately on 4xx/5xx so tests fail fast with a clear error
+            response.raise_for_status()
+
+        except requests.exceptions.Timeout:
+            # Server did not respond within TIMEOUT seconds
+            logger.error(f"TIMEOUT {method} {endpoint}")
+            raise
+
+        except requests.exceptions.HTTPError as e:
+            # Non-2xx response — log status code for quick diagnosis
+            logger.error(f"HTTP ERROR {method} {endpoint} -> {e.response.status_code}")
+            raise
+
+        except requests.exceptions.RequestException as e:
+            # Catch-all for network errors: DNS failure, connection refused, etc.
+            logger.error(f"REQUEST FAILED {method} {endpoint} -> {e}")
+            raise
+
+        # Calculate total round-trip time after a successful response
+        elapsed = time.time() - start
+
+        # Log method, path, status code, and duration for every successful call
+        logger.info(f"{method} {endpoint} -> {response.status_code} ({elapsed:.3f}s)")
+
+        # Safely parse JSON — returns empty dict if body is empty or not valid JSON
+        # Prevents crashes on endpoints that return no content e.g. 204 DELETE
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+
+        # Return structured dict so tests can assert on any part of the response
+        return {
+            "status_code": response.status_code,  # e.g. 200, 201, 204
+            "json": body,                          # parsed response payload
+            "headers": dict(response.headers),     # cast to dict for easy assertions
+            "response_time": elapsed               # used for performance threshold checks
         }
 
-    # def get(self, endpoint):
-    #     response = requests.get(f"{self.base_url}{endpoint}",
-    #         headers=self.headers,
-    #         timeout=TIMEOUT
-    #     )
-    #     print(f"Github GET request details:")
-    #     return {
-    #         "status_code": response.status_code,
-    #         "json": response.json(),
-    #         "response_time": response.elapsed.total_seconds()
-    #     }
-'''Create repo (POST)
-Update repo settings (PATCH)
-Validate repo metadata (GET)
-Delete repo (DELETE)'''
+    # ── Convenience Methods ────────────────────────────────────────────────────
+    # Wrap request() to give tests a clean, readable interface
 
-# Build full URL
-def request(self, method, endpoint, json_body=None):
-    url = f"{API_BASE_URL}{endpoint}"
-    headers = get_auth_headers()
-    # Start Timer
-    start = time.time()
-    # Send HTTP Request
-    response = requests.request(
-        method=method,
-        url=url,
-        headers=headers,
-        json=json_body
-    )
-    # Compute Elapsed Time
-    elapsed = time.time() - start
-    # Logging
-    logger.info(
-        f"{method} {endpoint} -> {response.status_code} ({elapsed:.3f}s)"
-    )
-    # Returns a dictionary containing all useful info for tests
-    return {
-        "status_code": response.status_code,
-        "json": response.json() if response.content else {},
-        "headers": response.headers,
-        "response_time": elapsed
-    }
+    def get(self, endpoint: str) -> dict:
+        """Sends a GET request. Used to read and fetch resources."""
+        return self.request("GET", endpoint)
 
-def get(self, endpoint):
-    return self.request("GET", endpoint)
+    def post(self, endpoint: str, body: dict = None) -> dict:
+        """Sends a POST request. Used to create new resources."""
+        return self.request("POST", endpoint, body)
 
-def post(self, endpoint, body):
-    return self.request("POST", endpoint, body)
+    def patch(self, endpoint: str, body: dict = None) -> dict:
+        """Sends a PATCH request. Used to partially update existing resources."""
+        return self.request("PATCH", endpoint, body)
 
-def patch(self, endpoint, body):
-    return self.request("PATCH", endpoint, body)
-
-def delete(self, endpoint):
-    return self.request("DELETE", endpoint)
+    def delete(self, endpoint: str) -> dict:
+        """Sends a DELETE request. Used to remove resources."""
+        return self.request("DELETE", endpoint)

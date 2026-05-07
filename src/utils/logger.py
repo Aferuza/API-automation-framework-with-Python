@@ -1,5 +1,4 @@
 import logging
-from time import asctime
 
 # Configure global logging format and level
 logging.basicConfig(

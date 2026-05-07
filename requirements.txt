@@ -1,7 +1,6 @@
 requests
 pytest
 httpx
-pytest
 python-dotenv
 pydantic
 pytest-html

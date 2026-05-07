@@ -1,3 +1,4 @@
+# library used to validate JSON data against a schema (rules/structure).
 from jsonschema import validate, ValidationError
 from src.utils.logger import logger
 
