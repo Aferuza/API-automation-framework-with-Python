@@ -145,6 +145,14 @@ class TestRepoLifecycle:
             "Description was not updated"
         )
 
+# Validate GET /repos/{owner}/{repo} responds within performance threshold.
+
+    def test_repo_performance(self, client):
+        endpoint = REPO.format(owner=GITHUB_USERNAME, repo=GITHUB_REPO)
+        response = client.get(endpoint)
+        assert response["response_time"] < PERFORMANCE_THRESHOLD, (
+            f"Response too slow: {response['response_time']:.3f}s"
+        )
 # Validate DELETE /repos/{owner}/{repo} removes the repo and returns 204."""
     def test_delete_repo(self, client):
         endpoint = REPO.format(owner=GITHUB_USERNAME, repo=GITHUB_REPO)
@@ -155,11 +163,3 @@ class TestRepoLifecycle:
             f"Expected 204, got {response['status_code']}"
         )
         assert response["json"] == {}, "DELETE response body should be empty"
-
-# Validate GET /repos/{owner}/{repo} responds within performance threshold.
-    def test_repo_performance(self, client):
-        endpoint = REPO.format(owner=GITHUB_USERNAME, repo=GITHUB_REPO)
-        response = client.get(endpoint)
-        assert response["response_time"] < PERFORMANCE_THRESHOLD, (
-            f"Response too slow: {response['response_time']:.3f}s"
-        )

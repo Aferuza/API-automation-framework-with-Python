@@ -1,10 +1,12 @@
 {
   "type": "object",
-  "required": ["login", "id"],
   "properties": {
-    "login": {"type": "string"},
-    "id": {"type": "number"},
-    "email": {"type": ["string", "null"]}
-  }
+    "name": {
+      "type": "string"
+    },
+    "full_name": {
+      "type": "string"
+    }
+  },
+  "required": ["name"]
 }
-
