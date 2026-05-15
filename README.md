@@ -102,11 +102,11 @@ What This Framework Actually Does?
      │                    │                    │
 ┌────▼──────┐    ┌────────▼───────┐   ┌───────▼──────┐
 │ CONFIG    │    │  AUTH CLIENT   │   │  VALIDATION  │
-│ config.py │    │ auth_client.py │   │ schema_       │
-│           │    │                │   │ validator.py  │
-│ .env      │    │ Bearer token   │   │               │
-│ os.environ│    │ per-request    │   │ user_schema   │
-│ validates │    │ header build   │   │ .json         │
+│ config.py │    │ auth_client.py │   │ schema_      │
+│           │    │                │   │ validator.py │
+│ .env      │    │ Bearer token   │   │              │
+│ os.environ│    │ per-request    │   │ user_schema  │
+│ validates │    │ header build   │   │ .json        │
 │ at import │    └────────────────┘   └──────────────┘
 └───────────┘
 
@@ -143,6 +143,7 @@ Step 5 — Report generated
   └── All pass/fail outcomes, durations, and errors captured
 
 Project Structure
+```
 API-automation-framework-with-Python/
 │
 ├── .github/
@@ -177,11 +178,14 @@ API-automation-framework-with-Python/
 ├── pyproject.toml                  # Package metadata
 ├── requirements.txt                # All dependencies pinned
 └── .env                            # Local secrets — never committed
+```
 
 The APIClient — The Heart of the Framework
 Every single HTTP call in this framework goes through api_client.py. No test ever imports
 requests directly. Here's why that matters and what happens on every request:
-python# What a test looks like — clean, zero boilerplate
+
+```python
+# What a test looks like — clean, zero boilerplate
 def test_get_authenticated_user_status(self, client):
     response = client.get(USER)
     assert response["status_code"] == 200
@@ -196,35 +200,41 @@ def test_get_authenticated_user_status(self, client):
 # 6. Logs: "GET /user | Status: 200 | Duration: 0.312s"
 # 7. Safely parses JSON — returns {} on empty body (e.g. 204 DELETE)
 # 8. Returns standardized dict:
+```
+
+```json
 {
     "status_code": 200,
     "json": { "login": "Aferuza", "id": 45316760, ... },
     "headers": { "X-RateLimit-Remaining": "4998", ... },
     "response_time": 0.312
 }
+```
+
 The auth header is fetched per request, not at client initialization. This is intentional —
 it means token rotation works in long-running CI pipelines without restarting the session.
 
 Schema Validation vs Payload Assertions — Why Both Matter
 This is a distinction that matters in production and in interviews. They catch completely
 different categories of bugs.
-Payload assertion:
-  assert response["json"]["login"] == "Aferuza"
-  → Catches: wrong user's data returned, value regression
-  → Misses:  GitHub renames "login" to "username"
 
-Schema validation:
-  assert_valid_schema(response["json"], user_schema)
-  → Catches: renamed fields, type changes (int → string), removed required fields
-  → Misses:  correct structure but wrong value
+| Assertion Type | Catches | Misses |
+|---|---|---|
+| **Payload assertion** | Wrong user's data returned, value regression | GitHub renames "login" to "username" |
+| **Schema validation** | Renamed fields, type changes (int → string), removed required fields | Correct structure but wrong value |
 
-Real example — GitHub silently changes "id" from integer to string:
-  Payload assertion: PASSES (string "45316760" == string "45316760" in loose check)
-  Schema validation: FAILS immediately
-    jsonschema.ValidationError: 45316760 is not of type 'integer'
-    Path: id
+Example — GitHub silently changes "id" from integer to string:
+- **Payload assertion**: PASSES (string "45316760" == string "45316760" in loose check)
+- **Schema validation**: FAILS immediately
+  ```
+  jsonschema.ValidationError: 45316760 is not of type 'integer'
+  Path: id
+  ```
+
 The schema contract enforced in this framework:
-json{
+
+```json
+{
   "type": "object",
   "required": ["login", "id", "type", "created_at"],
   "properties": {
@@ -234,9 +244,12 @@ json{
     "created_at": { "type": "string",  "format": "date-time" }
   }
 }
+```
 
 Configuration — How Environment Portability Works
 The same test suite runs in three different environments without changing a single line of code:
+
+```
 LOCAL DEVELOPMENT          CI (GitHub Actions)        STAGING (future)
 ─────────────────          ───────────────────        ────────────────
 .env file                  GitHub Secrets             Environment-specific
@@ -245,31 +258,35 @@ LOCAL DEVELOPMENT          CI (GitHub Actions)        STAGING (future)
     └──────────┬────────────────┘──────────────────────────┘
                │
                ▼
-         os.environ.get("AUTH_TOKEN")
+          os.environ.get("AUTH_TOKEN")
                │
                ▼
-           config.py
-    ┌──────────────────────┐
-    │ Validates at import: │
-    │ • API_BASE_URL ✓     │
-    │ • AUTH_TOKEN ✓       │
-    │ • GITHUB_USERNAME ✓  │
-    │ • GITHUB_REPO ✓      │
-    │ • TIMEOUT (def: 10)  │
-    │ • PERF_THRESHOLD     │
-    │   (def: 1.5s)        │
-    └──────────────────────┘
-    Missing variable?
-    → RuntimeError("AUTH_TOKEN is required")
-    → Test run stops in 0.1s with a clear message
-    → Not a cryptic 401 failure 5 tests in
+            config.py
+     ┌──────────────────────┐
+     │ Validates at import: │
+     │ • API_BASE_URL ✓     │
+     │ • AUTH_TOKEN ✓       │
+     │ • GITHUB_USERNAME ✓  │
+     │ • GITHUB_REPO ✓      │
+     │ • TIMEOUT (def: 10)  │
+     │ • PERF_THRESHOLD     │
+     │   (def: 1.5s)        │
+     └──────────────────────┘
+     Missing variable?
+     → RuntimeError("AUTH_TOKEN is required")
+     → Test run stops in 0.1s with a clear message
+     → Not a cryptic 401 failure 5 tests in
+```
+
 The PERFORMANCE_THRESHOLD being environment-variable driven is important: you can set a
 stricter threshold locally (1.0s) and a more lenient one in CI (2.0s) to account for
 GitHub Actions runner latency — without touching the test code.
 
 CI/CD Pipeline — GitHub Actions
 The pipeline runs in two tiers:
-Every push / pull request:
+
+**Every push / pull request:**
+```
 ┌─────────────────────────────────────┐
 │  mocked-tests job                   │
 │  ─────────────────                  │
@@ -278,8 +295,10 @@ Every push / pull request:
 │  Runs in ~5 seconds                 │
 │  pytest -m "not live"               │
 └─────────────────────────────────────┘
+```
 
-Nightly at 2am UTC (scheduled):
+**Nightly at 2am UTC (scheduled):**
+```
 ┌─────────────────────────────────────┐
 │  live-integration-tests job         │
 │  ──────────────────────────────     │
@@ -289,7 +308,9 @@ Nightly at 2am UTC (scheduled):
 │  pytest -m "live"                   │
 │  Uploads HTML report as artifact    │
 └─────────────────────────────────────┘
-Why split?
+```
+
+**Why split?**
 
 Because live API tests have failure modes that have nothing to do with your code —
 rate limiting, network flakiness, GitHub outages. Flaky tests destroy team trust in a test suite
@@ -297,24 +318,31 @@ faster than anything else. Mocked tests on every push stay fast and reliable. Li
 nightly to validate the real contract.
 
 Setup:
-1. Clone and install
-bashgit clone https://github.com/Aferuza/API-automation-framework-with-Python.git
+
+**1. Clone and install**
+```bash
+git clone https://github.com/Aferuza/API-automation-framework-with-Python.git
 cd API-automation-framework-with-Python
 python -m venv env
 source env/bin/activate        # Windows: env\Scripts\activate
 pip install -r requirements.txt
+```
 
-2. Create your .env file
-envAPI_BASE_URL=https://api.github.com
+**2. Create your .env file**
+```env
+API_BASE_URL=https://api.github.com
 AUTH_TOKEN=ghp_yourPersonalAccessTokenHere
 GITHUB_USERNAME=your_github_username
 GITHUB_REPO=your_test_repo_name
 TIMEOUT=10
 PERFORMANCE_THRESHOLD=1.5
-Your token needs these scopes: repo, delete_repo, read:user
+```
 
-3. Run the tests
-bash# Full suite + HTML report
+Your token needs these scopes: `repo`, `delete_repo`, `read:user`
+
+**3. Run the tests**
+```bash
+# Full suite + HTML report
 python run_tests.py
 
 # Pytest directly
@@ -330,21 +358,40 @@ pytest tests/ -v --html=reports/report.html --self-contained-html
 # By marker
 pytest tests/ -m "smoke" -v
 pytest tests/ -m "not live" -v
+```
 
 Test Coverage:
-TestAuthenticatedUser — Validates GET /user
-TestWhat It ChecksWhy It Matterstest_get_authenticated_user_statusStatus code is 200Confirms token is valid and correctly scopedtest_get_authenticated_user_schemaBody matches user_schema.jsonCatches breaking GitHub API changes automaticallytest_get_authenticated_user_payloadBody contains login and idConfirms correct user identity is returnedtest_get_authenticated_user_response_timeRound-trip < PERFORMANCE_THRESHOLDSlow APIs are a bug — this makes it a test failure
-TestRepoLifecycle — Full CRUD on a real repository
-TestHTTP CallExpectedWhat's Validatedtest_create_repoPOST /user/repos201Repo name, visibility, schematest_get_repoGET /repos/{owner}/{repo}200Name, owner login, schematest_update_repoPATCH /repos/{owner}/{repo}200Updated description reflected, schematest_delete_repoDELETE /repos/{owner}/{repo}204Empty body, no crash on parsetest_repo_performanceGET /repos/{owner}/{repo}< thresholdResponse time enforcement
+
+**TestAuthenticatedUser — Validates GET /user**
+
+| Test | HTTP Call | Expected | What's Validated |
+|---|---|---|---|
+| `test_get_authenticated_user_status` | GET /user | 200 | Status code confirms token is valid and correctly scoped |
+| `test_get_authenticated_user_schema` | GET /user | 200 | Body matches user_schema.json, catches contract changes |
+| `test_get_authenticated_user_fields` | GET /user | 200 | Required fields (login, id, type) present in response |
+| `test_get_authenticated_user_performance` | GET /user | 200 | Response time < PERFORMANCE_THRESHOLD |
+
+**TestRepoLifecycle — Full CRUD on a real repository**
+
+| Test | HTTP Call | Expected | What's Validated |
+|---|---|---|---|
+| `test_create_repo` | POST /user/repos | 201 | Repo name, visibility, schema contract |
+| `test_get_repo` | GET /repos/{owner}/{repo} | 200 | Name, owner login, schema matches expected |
+| `test_update_repo` | PATCH /repos/{owner}/{repo} | 200 | Updated description persisted, schema valid |
+| `test_delete_repo` | DELETE /repos/{owner}/{repo} | 204 | No content returned, repo actually deleted |
+| `test_repo_lifecycle_performance` | All above | < 2.0s | Full CRUD cycle completes within threshold |
 
 
 
 
 About Me:
+
 Six years in QA, based in the Bay Area. I care about backend quality, API contract testing,
 and the intersection of DevOps and test automation. I built this framework because I wanted
 a portfolio project I could actually be proud of — one that reflects how I think about
 engineering, not just how I write tests.
+
 If you have questions about any architectural decision in this repo, I'd genuinely enjoy
 that conversation.
-·[Feruza Askar GitHub](https://github.com/Aferuza) ·[Feruza Askar LinkedIn](https://www.linkedin.com/in/feruza-askar/)
+
+· [Feruza Askar GitHub](https://github.com/Aferuza) · [Feruza Askar LinkedIn](https://www.linkedin.com/in/feruza-askar/)
