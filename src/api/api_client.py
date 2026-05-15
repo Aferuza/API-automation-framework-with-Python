@@ -8,10 +8,13 @@ from src.utils.logger import logger
 
 
 class APIClient:
-    """test modules interact with the API through this class. wraps all HTTP requests with auth, logging, timing, and error handling."""
 
     def __init__(self):
         self.base_url = API_BASE_URL
+        self.headers = {
+            "Authorization": f"Bearer {AUTH_TOKEN}",
+            "Accept": "application/vnd.github+json"
+        }
 
     def request(self, method: str, endpoint: str, json_body=None) -> dict:
         """ executes all HTTP requests.  Called internally by get(), post(), patch(), delete()."""

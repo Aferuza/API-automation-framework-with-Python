@@ -1,5 +1,5 @@
 from api.endpoints import USER
-from tests.test_repo_lifecycle import assert_valid_schema
+from tests.integration.test_repo_lifecycle import assert_valid_schema
 import utils.config
 from src.utils.config import PERFORMANCE_THRESHOLD
 

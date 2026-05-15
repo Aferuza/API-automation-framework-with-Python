@@ -1,214 +1,311 @@
 
-This project is a Python-based API automation framework that could display how QA and DevOps teams build scalable,
- maintainable, and CI/CD-ready automated testing solutions for backend systems.
-It validates GitHub REST APIs (uses live APIs rather than mocks) with focus on backend quality, API contracts, authentication, performance,
-and DevOps practices.
 
-Project Objectives:
+Why I Built This?
+I've been in QA for six years. I've seen a lot of "automation frameworks" that are really just a
+single test file hitting a mock server, wrapped in a pytest class, uploaded to GitHub the night
+before an interview.
+This isn't that.
+I wanted to build something I could be asked about in a technical interview and defend every
+single decision — why the APIClient is a separate layer, why config validates at import time,
+why schema validation is different from payload assertions, why the auth header is fetched per
+request instead of once at client initialization.
+This framework hits the real GitHub API. It runs a real CRUD lifecycle — creates an actual
+repository, reads it, updates it, deletes it — and validates status codes, response payloads,
+JSON schema contracts, and performance thresholds at every step.
+If you're a hiring manager reading this: every line of code here is something I can explain
+on a whiteboard. That's the standard I held myself to.
 
-1. Validate GitHub API Authentication
-Confirm that a Bearer token is valid, correctly scoped, and returns expected user identity fields (`login`, `id`) via `GET /user`.
+What This Framework Actually Does?
+┌─────────────────────────────────────────────────────────┐
+│                     TEST RUNNER                         │
+│                    run_tests.py                         │
+│         pytest → collect → execute → report             │
+└────────────────────────┬────────────────────────────────┘
+                         │
+          ┌──────────────▼──────────────┐
+          │        TEST LAYER           │
+          │   tests/test_users_api.py   │
+          │                             │
+          │  TestAuthenticatedUser      │
+          │  ├── status code (200)      │
+          │  ├── schema contract        │
+          │  ├── payload fields         │
+          │  └── response time < 1.5s  │
+          │                             │
+          │  TestRepoLifecycle          │
+          │  ├── CREATE → 201           │
+          │  ├── READ   → 200           │
+          │  ├── UPDATE → 200           │
+          │  ├── DELETE → 204           │
+          │  └── PERF   → < threshold  │
+          └──────────────┬──────────────┘
+                         │ uses
+          ┌──────────────▼──────────────┐
+          │      FIXTURE LAYER          │
+          │       conftest.py           │
+          │  module-scoped APIClient    │
+          │  user_schema injected       │
+          │  repo_schema injected       │
+          └──────────────┬──────────────┘
+                         │ injects
+          ┌──────────────▼──────────────┐
+          │       CLIENT LAYER          │
+          │      api_client.py          │
+          │  builds URL                 │
+          │  fetches auth headers       │
+          │  records response time      │
+          │  logs every request         │
+          │  safe JSON parsing          │
+          │  returns standard dict      │
+          └──────────────┬──────────────┘
+                         │ reads from
+     ┌────────────────────┼────────────────────┐
+     │                    │                    │
+┌────▼──────┐    ┌────────▼───────┐   ┌───────▼──────┐
+│ CONFIG    │    │  AUTH CLIENT   │   │  VALIDATION  │
+│ config.py │    │ auth_client.py │   │ schema_       │
+│           │    │                │   │ validator.py  │
+│ .env      │    │ Bearer token   │   │               │
+│ os.environ│    │ per-request    │   │ user_schema   │
+│ validates │    │ header build   │   │ .json         │
+│ at import │    └────────────────┘   └──────────────┘
+└───────────┘
 
-2. Enforce API Contract Testing
-Use JSON schema validation (`jsonschema`) to catch any breaking changes to the GitHub API response structure — if GitHub renames or removes a field, tests fail immediately with a clear message rather than silently passing with bad data.
+The Test Lifecycle — What Happens When You Run This?
+Here's the exact sequence of events when you run python run_tests.py:
+Step 1 — Config loads
+  └── python-dotenv reads .env
+  └── config.py validates ALL required vars at import time
+  └── If AUTH_TOKEN is missing → RuntimeError immediately
+      (not a cryptic 401 three tests in)
 
-3. Automate the Full CRUD Repository Lifecycle**
-Execute a real end-to-end workflow — Create → Read → Update → Delete — against an actual GitHub repository, verifying correct HTTP status codes (`201`, `200`, `204`) and payload accuracy at every step.
+Step 2 — Fixtures initialize
+  └── conftest.py creates module-scoped APIClient
+  └── APIClient connects to https://api.github.com
+  └── auth_client.py builds Bearer token header
+  └── Schemas loaded: user_schema.json, repo_schema
 
-4. Enforce Performance Thresholds**
-Assert that API responses return within a configurable time limit (`PERFORMANCE_THRESHOLD`, defaulting to 1.5s), making slow API responses a test failure rather than a silent degradation.
+Step 3 — TestAuthenticatedUser runs
+  └── GET /user
+      ├── status_code == 200 ✓
+      ├── response body matches user_schema.json ✓
+      ├── body contains "login" and "id" fields ✓
+      └── response_time < PERFORMANCE_THRESHOLD ✓
 
-5. Provide a Reusable, Maintainable HTTP Layer**
-Centralise all API interaction in a single `APIClient` class that handles auth headers, request timing, structured response parsing, logging, and error handling — so individual tests stay clean and focused on assertions only.
+Step 4 — TestRepoLifecycle runs
+  └── POST /user/repos        → 201 Created
+      └── GET  /repos/{owner}/{repo}  → 200 OK
+          └── PATCH /repos/{owner}/{repo} → 200 OK
+              └── DELETE /repos/{owner}/{repo} → 204 No Content
+                  └── GET /repos/{owner}/{repo} → perf check
 
-6. Fail Fast on Misconfiguration
-Validate all required environment variables at import time (`API_BASE_URL`, `AUTH_TOKEN`, `GITHUB_USERNAME`, `GITHUB_REPO`) and raise a `RuntimeError` immediately, preventing cryptic mid-test failures from a missing `.env`.
+Step 5 — Report generated
+  └── HTML report written to reports/report.html
+  └── All pass/fail outcomes, durations, and errors captured
 
-7. Generate Test Reports
-Produce HTML test reports automatically via `pytest-html` and a custom `report_generator`, giving visibility into pass/fail outcomes and execution history.
-
-My Project Tech Stack:
-* Language: Python3
-* Testing Framework: Pytest
-* HTTP Client: Requests
-* Schema Validation: jsonschema
-* Configuration Management: python-dotenv
-* Authentication: OAuth2 Bearer Token
-* Reporting: HTML reports (pytest-html / Jinja2 ready)
-
-
-Overview:
-This framework automates end-to-end testing of the GitHub API via a reusable APIClient class. 
-Tests validate: 
-HTTP status codes, 
-response payloads, 
-JSON schema contracts, and 
-response time performance thresholds. 
-Authentication is handled via a Bearer token loaded from a .env file.
-
-My Project Structure:
-API-automation-framework-with-Python-main/
+Project Structure
+API-automation-framework-with-Python/
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml                  # GitHub Actions pipeline
 │
 ├── src/
 │   ├── api/
-│   │   ├── api_client.py          # Central HTTP client (GET, POST, PATCH, DELETE)
-│   │   └── endpoints.py           # GitHub API endpoint constants
+│   │   ├── api_client.py           # Central HTTP adapter (GET/POST/PATCH/DELETE)
+│   │   └── endpoints.py            # All GitHub API path constants
 │   ├── auth/
-│   │   └── auth_client.py         # Builds Bearer token auth headers
+│   │   └── auth_client.py          # Builds Bearer token header per request
 │   ├── utils/
-│   │   ├── config.py              # Loads and validates .env config
-│   │   └── logger.py              # Shared logger instance
+│   │   ├── config.py               # Loads .env, validates at import time
+│   │   └── logger.py               # Shared structured logger
 │   ├── validation/
 │   │   └── schemas/
-│   │       ├── schema_validator.py  # jsonschema wrapper utility
-│   │       └── user_schema.json     # JSON schema for /user response contract
+│   │       ├── schema_validator.py # jsonschema wrapper with clear error messages
+│   │       └── user_schema.json    # JSON Schema contract for GET /user
 │   └── reporting/
-│       └── report_generator.py    # HTML report generation
+│       └── report_generator.py     # HTML report builder
 │
 ├── tests/
-│   ├── conftest.py                # Pytest fixture reference (commented)
-│   └── test_users_api.py         # Main test file — all test classes live here
+│   ├── conftest.py                 # Pytest fixtures (client, schemas)
+│   └── test_users_api.py           # All test classes
 │
-├── run_tests.py                   # Entry point: runs pytest + generates report
-├── requirements.txt               # Python dependencies
-├── pyproject.toml                 # Package config (setuptools)
-└── .env                           # Secret config (not committed)
+├── reports/                        # Generated HTML test reports land here
+├── results/                        # Raw JSON results
+├── get_jwt_token.py                # GitHub Apps JWT generator (enterprise auth)
+├── run_tests.py                    # Entry point — runs pytest + report
+├── pytest.ini                      # Markers, log config, report path
+├── pyproject.toml                  # Package metadata
+├── requirements.txt                # All dependencies pinned
+└── .env                            # Local secrets — never committed
 
-Test Classes:
-Both test classes live in tests/test_users_api.py and share module-scoped fixtures: an APIClient instance, a user_schema, and a repo_schema.
+The APIClient — The Heart of the Framework
+Every single HTTP call in this framework goes through api_client.py. No test ever imports
+requests directly. Here's why that matters and what happens on every request:
+python# What a test looks like — clean, zero boilerplate
+def test_get_authenticated_user_status(self, client):
+    response = client.get(USER)
+    assert response["status_code"] == 200
 
-TestAuthenticatedUser
-Validates the GET /user endpoint to confirm the Bearer token is valid, the response contract is intact, and the API performs within the configured threshold.
-Test MethodWhat It Validatestest_get_authenticated_user_statusResponse status is 200 OKtest_get_authenticated_user_schemaResponse body matches user_schema.json contracttest_get_authenticated_user_payloadResponse body contains required login and id fieldstest_get_authenticated_user_response_timeRound-trip time is below PERFORMANCE_THRESHOLD
-
-E.g:
-pythonclass TestAuthenticatedUser:
-    def test_get_authenticated_user_status(self, client):
-        response = client.get(USER)
-        assert response["status_code"] == 200
-
-TestRepoLifecycle:
-Executes a full Create → Read → Update → Delete lifecycle against a real GitHub repository. Each step validates status code, response payload, and JSON schema contract.
-Test MethodHTTP CallWhat It Validatestest_create_repoPOST /user/repos201 status, correct repo name and visibility in body, schema matchtest_get_repoGET /repos/{owner}/{repo}200 status, correct repo name, correct owner login, schema matchtest_update_repoPATCH /repos/{owner}/{repo}200 status, updated description reflected in response, schema matchtest_delete_repoDELETE /repos/{owner}/{repo}204 status, empty response bodytest_repo_performanceGET /repos/{owner}/{repo}Response time is below PERFORMANCE_THRESHOLD
-
-E.g:
-pythonclass TestRepoLifecycle:
-    def test_create_repo(self, client, repo_schema):
-        response = client.post(USER_REPOS, body={
-            "name": GITHUB_REPO,
-            "description": "Created by API automation framework",
-            "private": False,
-            "auto_init": True
-        })
-        assert response["status_code"] == 201
-        assert response["json"]["name"] == GITHUB_REPO
-
-Used Modules:
-APIClient — src/api/api_client.py
-The HTTP wrapper used by all test methods. Every request is automatically supplied with:
-
-Auth headers — fetched on every call via get_auth_headers() to support token rotation
-Timing — records round-trip elapsed time for performance assertions
-Logging — logs method, path, status code, and duration for every request
-Error handling — raises on timeouts, HTTP 4xx/5xx errors, and network failures with descriptive log output
-Safe JSON parsing — returns {} on empty bodies (e.g. 204 DELETE) to prevent crashes
-
-Every call returns a dict:
-python{
-    "status_code": 201,
-    "json": { ... },           # parsed response body
-    "headers": { ... },        # response headers as a plain dict
-    "response_time": 0.312     # seconds — used in performance threshold tests
+# What APIClient does behind the scenes on that one line:
+# 1. Builds full URL:  https://api.github.com + /user
+# 2. Calls auth_client.get_auth_headers() — fresh on every call
+#    → {"Authorization": "Bearer ghp_xxx", "Accept": "application/json"}
+# 3. Records start time
+# 4. Sends request with configured timeout (default: 10s)
+# 5. Records end time
+# 6. Logs: "GET /user | Status: 200 | Duration: 0.312s"
+# 7. Safely parses JSON — returns {} on empty body (e.g. 204 DELETE)
+# 8. Returns standardized dict:
+{
+    "status_code": 200,
+    "json": { "login": "Aferuza", "id": 45316760, ... },
+    "headers": { "X-RateLimit-Remaining": "4998", ... },
+    "response_time": 0.312
 }
-endpoints.py — src/api/endpoints.py
+The auth header is fetched per request, not at client initialization. This is intentional —
+it means token rotation works in long-running CI pipelines without restarting the session.
 
-Defines all GitHub API path constants. Template strings use .format() to inject owner, repo, and username at test time:
-pythonUSER               = "/user"
-USER_REPOS         = "/user/repos"
-REPO               = "/repos/{owner}/{repo}"
-REPO_BRANCHES      = "/repos/{owner}/{repo}/branches"
-REPO_ISSUES        = "/repos/{owner}/{repo}/issues"
-REPO_COLLABORATORS = "/repos/{owner}/{repo}/collaborators/{username}"
-REPO_TOPICS        = "/repos/{owner}/{repo}/topics"
-auth_client.py — src/auth/auth_client.py
-Returns the auth header dict injected into every API request:
-python{
-    "Authorization": "Bearer <AUTH_TOKEN>",
-    "Accept": "application/json"
+Schema Validation vs Payload Assertions — Why Both Matter
+This is a distinction that matters in production and in interviews. They catch completely
+different categories of bugs.
+Payload assertion:
+  assert response["json"]["login"] == "Aferuza"
+  → Catches: wrong user's data returned, value regression
+  → Misses:  GitHub renames "login" to "username"
+
+Schema validation:
+  assert_valid_schema(response["json"], user_schema)
+  → Catches: renamed fields, type changes (int → string), removed required fields
+  → Misses:  correct structure but wrong value
+
+Real example — GitHub silently changes "id" from integer to string:
+  Payload assertion: PASSES (string "45316760" == string "45316760" in loose check)
+  Schema validation: FAILS immediately
+    jsonschema.ValidationError: 45316760 is not of type 'integer'
+    Path: id
+The schema contract enforced in this framework:
+json{
+  "type": "object",
+  "required": ["login", "id", "type", "created_at"],
+  "properties": {
+    "login":      { "type": "string",  "minLength": 1 },
+    "id":         { "type": "integer", "minimum": 1 },
+    "type":       { "type": "string",  "enum": ["User", "Organization"] },
+    "created_at": { "type": "string",  "format": "date-time" }
+  }
 }
 
-config.py — src/utils/config.py
-Loads all configuration from .env using python-dotenv. Raises a RuntimeError at import time if any required variable is missing — this means a misconfigured environment fails immediately with a clear message rather than a cryptic 401 mid-test.
-VariableDescriptionDefaultAPI_BASE_URLGitHub API base URLrequiredAUTH_TOKENGitHub Personal Access TokenrequiredGITHUB_USERNAMEGitHub username (fills {owner})requiredGITHUB_REPOTarget repo name (fills {repo})requiredTIMEOUTRequest timeout in seconds10PERFORMANCE_THRESHOLDMax acceptable response time (seconds)1.5
-schema_validator.py — src/validation/schemas/schema_validator.py
-Wraps jsonschema.validate() and logs any schema validation errors. Tests also use assert_valid_schema() defined in the test file itself, which wraps the same library with a clear pytest.fail() message on contract violations.
+Configuration — How Environment Portability Works
+The same test suite runs in three different environments without changing a single line of code:
+LOCAL DEVELOPMENT          CI (GitHub Actions)        STAGING (future)
+─────────────────          ───────────────────        ────────────────
+.env file                  GitHub Secrets             Environment-specific
+    │                           │                     secrets injection
+    │                           │                          │
+    └──────────┬────────────────┘──────────────────────────┘
+               │
+               ▼
+         os.environ.get("AUTH_TOKEN")
+               │
+               ▼
+           config.py
+    ┌──────────────────────┐
+    │ Validates at import: │
+    │ • API_BASE_URL ✓     │
+    │ • AUTH_TOKEN ✓       │
+    │ • GITHUB_USERNAME ✓  │
+    │ • GITHUB_REPO ✓      │
+    │ • TIMEOUT (def: 10)  │
+    │ • PERF_THRESHOLD     │
+    │   (def: 1.5s)        │
+    └──────────────────────┘
+    Missing variable?
+    → RuntimeError("AUTH_TOKEN is required")
+    → Test run stops in 0.1s with a clear message
+    → Not a cryptic 401 failure 5 tests in
+The PERFORMANCE_THRESHOLD being environment-variable driven is important: you can set a
+stricter threshold locally (1.0s) and a more lenient one in CI (2.0s) to account for
+GitHub Actions runner latency — without touching the test code.
 
+CI/CD Pipeline — GitHub Actions
+The pipeline runs in two tiers:
+Every push / pull request:
+┌─────────────────────────────────────┐
+│  mocked-tests job                   │
+│  ─────────────────                  │
+│  No real API calls                  │
+│  No secrets needed                  │
+│  Runs in ~5 seconds                 │
+│  pytest -m "not live"               │
+└─────────────────────────────────────┘
+
+Nightly at 2am UTC (scheduled):
+┌─────────────────────────────────────┐
+│  live-integration-tests job         │
+│  ──────────────────────────────     │
+│  Hits real GitHub API               │
+│  Uses GitHub Secrets                │
+│  Validates live API contract        │
+│  pytest -m "live"                   │
+│  Uploads HTML report as artifact    │
+└─────────────────────────────────────┘
+Why split?
+
+Because live API tests have failure modes that have nothing to do with your code —
+rate limiting, network flakiness, GitHub outages. Flaky tests destroy team trust in a test suite
+faster than anything else. Mocked tests on every push stay fast and reliable. Live tests run
+nightly to validate the real contract.
 
 Setup:
-bash# 1. Clone the repository
-git clone https://github.com/your-org/API-automation-framework-with-Python.git
+1. Clone and install
+bashgit clone https://github.com/Aferuza/API-automation-framework-with-Python.git
 cd API-automation-framework-with-Python
-
-# 2. Create and activate a virtual environment
 python -m venv env
 source env/bin/activate        # Windows: env\Scripts\activate
-
-# 3. Install dependencies
 pip install -r requirements.txt
 
-
-Configuration:
-Create a .env file in the project root:
+2. Create your .env file
 envAPI_BASE_URL=https://api.github.com
 AUTH_TOKEN=ghp_yourPersonalAccessTokenHere
 GITHUB_USERNAME=your_github_username
 GITHUB_REPO=your_test_repo_name
 TIMEOUT=10
 PERFORMANCE_THRESHOLD=1.5
-Required GitHub Personal Access Token scopes:
+Your token needs these scopes: repo, delete_repo, read:user
 
-repo — full repository access (create, read, update, delete)
-delete_repo — required for the test_delete_repo test
-read:user — required for the TestAuthenticatedUser tests
+3. Run the tests
+bash# Full suite + HTML report
+python run_tests.py
 
+# Pytest directly
+pytest tests/ -v
 
-Running the Tests:
-Run all tests via the entry point (also generates an HTML report):
-bashpython run_tests.py
-Run directly with pytest:
-bashpytest tests/ -v
-Run a specific test class:
-bashpytest tests/test_users_api.py::TestAuthenticatedUser -v
+# One class only
+pytest tests/test_users_api.py::TestAuthenticatedUser -v
 pytest tests/test_users_api.py::TestRepoLifecycle -v
-Run with an HTML report:
-bashpytest tests/ -v --html=reports/report.html --self-contained-html
 
-Test Lifecycle Flow:
+# With HTML report
+pytest tests/ -v --html=reports/report.html --self-contained-html
 
-[Setup]
-  └── .env loaded → config validated → APIClient initialized
-         │
-         ▼
-[TestAuthenticatedUser]
-  └── GET /user
-      ├── Status:      200 OK
-      ├── Schema:      matches user_schema.json
-      ├── Payload:     contains login + id fields
-      └── Performance: < PERFORMANCE_THRESHOLD seconds
-         │
-         ▼
-[TestRepoLifecycle]
-  ├── CREATE   POST   /user/repos               → 201 Created
-  ├── READ     GET    /repos/{owner}/{repo}      → 200 OK
-  ├── UPDATE   PATCH  /repos/{owner}/{repo}      → 200 OK
-  ├── DELETE   DELETE /repos/{owner}/{repo}      → 204 No Content
-  └── PERF     GET    /repos/{owner}/{repo}      → < threshold
-         │
-         ▼
-[Report]
-  └── HTML report written to reports/report.html
+# By marker
+pytest tests/ -m "smoke" -v
+pytest tests/ -m "not live" -v
 
-Dependencies:
-PackageVersionPurposerequestslatestHTTP client for all API callspytestlatestTest runner and fixture managementpytest-htmllatestHTML test report generationjsonschema(via pytest deps)JSON schema contract validationpython-dotenvlatest.env configuration loadinghttpxlatestAsync-capable HTTP client (available for extension)pydanticlatestData validation (available for extension)
-Install all dependencies with:
-bashpip install -r requirements.txt
+Test Coverage:
+TestAuthenticatedUser — Validates GET /user
+TestWhat It ChecksWhy It Matterstest_get_authenticated_user_statusStatus code is 200Confirms token is valid and correctly scopedtest_get_authenticated_user_schemaBody matches user_schema.jsonCatches breaking GitHub API changes automaticallytest_get_authenticated_user_payloadBody contains login and idConfirms correct user identity is returnedtest_get_authenticated_user_response_timeRound-trip < PERFORMANCE_THRESHOLDSlow APIs are a bug — this makes it a test failure
+TestRepoLifecycle — Full CRUD on a real repository
+TestHTTP CallExpectedWhat's Validatedtest_create_repoPOST /user/repos201Repo name, visibility, schematest_get_repoGET /repos/{owner}/{repo}200Name, owner login, schematest_update_repoPATCH /repos/{owner}/{repo}200Updated description reflected, schematest_delete_repoDELETE /repos/{owner}/{repo}204Empty body, no crash on parsetest_repo_performanceGET /repos/{owner}/{repo}< thresholdResponse time enforcement
+
+
+
+
+About Me:
+Six years in QA, based in the Bay Area. I care about backend quality, API contract testing,
+and the intersection of DevOps and test automation. I built this framework because I wanted
+a portfolio project I could actually be proud of — one that reflects how I think about
+engineering, not just how I write tests.
+If you have questions about any architectural decision in this repo, I'd genuinely enjoy
+that conversation.
+GitHub · LinkedIn
