@@ -1,4 +1,5 @@
 from src.utils.config import AUTH_TOKEN
+
 # Returns authentication headers for API requests
 def get_auth_headers():
     return {

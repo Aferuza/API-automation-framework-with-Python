@@ -1,6 +1,6 @@
 import pytest
 
-from api.api_client import APIClient
+from src.api.api_client import APIClient
 from tests.integration.test_repo_lifecycle import load_user_schema, load_repo_schema
 
 

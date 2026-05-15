@@ -5,3 +5,4 @@ python-dotenv
 pydantic
 pytest-html
 jsonschema
+responses
