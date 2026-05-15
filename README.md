@@ -1,5 +1,4 @@
 
-
 Why I Built This?
 I've been in QA for six years. I've seen a lot of "automation frameworks" that are really just a
 single test file hitting a mock server, wrapped in a pytest class, uploaded to GitHub the night
@@ -55,6 +54,7 @@ RUNNER
 
 
 What This Framework Actually Does?
+```
 ┌─────────────────────────────────────────────────────────┐
 │                     TEST RUNNER                         │
 │                    run_tests.py                         │
@@ -109,7 +109,7 @@ What This Framework Actually Does?
 │ validates │    │ header build   │   │ .json        │
 │ at import │    └────────────────┘   └──────────────┘
 └───────────┘
-
+```
 The Test Lifecycle — What Happens When You Run This?
 Here's the exact sequence of events when you run python run_tests.py:
 Step 1 — Config loads
@@ -390,7 +390,6 @@ Six years in QA, based in the Bay Area. I care about backend quality, API contra
 and the intersection of DevOps and test automation. I built this framework because I wanted
 a portfolio project I could actually be proud of — one that reflects how I think about
 engineering, not just how I write tests.
-
 If you have questions about any architectural decision in this repo, I'd genuinely enjoy
 that conversation.
 
