@@ -308,4 +308,4 @@ a portfolio project I could actually be proud of — one that reflects how I thi
 engineering, not just how I write tests.
 If you have questions about any architectural decision in this repo, I'd genuinely enjoy
 that conversation.
-GitHub · LinkedIn
+·[Feruza Askar GitHub](https://github.com/Aferuza) ·[Feruza Askar LinkedIn](https://www.linkedin.com/in/feruza-askar/)
