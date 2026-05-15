@@ -15,6 +15,45 @@ JSON schema contracts, and performance thresholds at every step.
 If you're a hiring manager reading this: every line of code here is something I can explain
 on a whiteboard. That's the standard I held myself to.
 
+
+
+<div align="left">
+
+```text
+RUNNER
+│
+├── run_tests.py
+│
+├── pytest
+│ ├── collect
+│ ├── execute
+│ └── report
+│
+├── TEST LAYER
+│ ├── schema contract
+│ ├── payload fields
+│ ├── response time
+│ └── CRUD lifecycle
+│
+├── FIXTURE LAYER
+│ └── conftest.py
+│
+├── CLIENT LAYER
+│ ├── api_client.py
+│ ├── auth headers
+│ ├── JSON parsing
+│ └── logging
+│
+└── CONFIG / AUTH / VALIDATION
+    ├── .env
+    ├── auth_client.py
+    ├── config.py
+    └── schema_validator.py
+```
+
+</div>
+
+
 What This Framework Actually Does?
 ┌─────────────────────────────────────────────────────────┐
 │                     TEST RUNNER                         │
