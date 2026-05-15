@@ -1,0 +1,108 @@
+name: API Automation CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *' # Runs daily at 6AM UTC — catches upstream API changes
+
+jobs:
+
+  # ─────────────────────────────────────────────
+  # JOB 1: Lint — catches code quality issues
+  # before wasting time running tests
+  # ─────────────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Run linter
+        run: flake8 src/ tests/ --max-line-length=100
+
+  # ─────────────────────────────────────────────
+  # JOB 2: Auth tests — validates token validity
+  # and API contract for GET /user
+  # ─────────────────────────────────────────────
+  test-auth:
+    needs: lint # only runs if lint passes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run authentication tests
+        env:
+          API_BASE_URL: "https://api.github.com"
+          AUTH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GH_USERNAME: ${{ secrets.GH_USERNAME }}
+          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+          PERFORMANCE_THRESHOLD: "1.5"
+        run: |
+          pytest tests/test_auth.py -v \
+            --html=reports/auth-report.html \
+            --self-contained-html
+
+      - name: Upload auth test report
+        if: always() # uploads even when tests fail — most important when they fail
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-test-report
+          path: reports/auth-report.html
+
+  # ─────────────────────────────────────────────
+  # JOB 3: Repo lifecycle — destructive CRUD tests
+  # isolated from auth tests intentionally
+  # ─────────────────────────────────────────────
+  test-repo-lifecycle:
+    needs: lint # runs in parallel with test-auth, both need lint to pass
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run repo lifecycle tests
+        env:
+          API_BASE_URL: "https://api.github.com"
+          AUTH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GH_USERNAME: ${{ secrets.GH_USERNAME }}
+          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+          PERFORMANCE_THRESHOLD: "1.5"
+        run: |
+          pytest tests/test_repo_lifecycle.py -v \
+            --html=reports/lifecycle-report.html \
+            --self-contained-html
+
+      - name: Upload lifecycle test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifecycle-test-report
+          path: reports/lifecycle-report.html

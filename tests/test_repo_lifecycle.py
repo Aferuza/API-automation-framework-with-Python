@@ -1,6 +1,8 @@
 import json
 import pytest
-from jsonschema import validate, ValidationError
+from jsonschema import ValidationError
+
+from src.validation.schemas.schema_validator import validate_schema, validate
 from src.api.api_client import APIClient
 from src.api.endpoints import USER, USER_REPOS, REPO
 from src.utils.config import GITHUB_USERNAME, GITHUB_REPO, PERFORMANCE_THRESHOLD
@@ -22,23 +24,6 @@ def load_repo_schema():
         return json.load(f)
 
 
-# PyTest Fixtures:
-# Reusable API client for all GitHub API tests in this module.
-@pytest.fixture(scope="module")
-def client():
-
-    return APIClient()
-
-#     Used to validate response contract — detects breaking API changes.
-@pytest.fixture(scope="module")
-def user_schema():
-    return load_user_schema()
-
-#  Validates structure on create, read, and update responses.
-@pytest.fixture(scope="module")
-def repo_schema():
-     return load_repo_schema()
-
 
 # Validates a response payload against a JSON schema.
 #     Wraps jsonschema.validate() with a clear failure message.
@@ -51,34 +36,6 @@ def assert_valid_schema(data: dict, schema: dict, label: str):
 
 #Tests
 
-class TestAuthenticatedUser:
-
-#Validate the /user endpoint. Confirms token is valid, scopes are correct, and response matches schema.
-    def test_get_authenticated_user_status(self, client):
-        """GET /user returns 200 for a valid token."""
-        response = client.get(USER)
-        assert response["status_code"] == 200, (
-            f"Expected 200, got {response['status_code']}"
-        )
-
-# Validate response matches the defined JSON schema contract.
-    def test_get_authenticated_user_schema(self, client, user_schema):
-        response = client.get(USER)
-        assert_valid_schema(response["json"], user_schema, "/user")
-
-#  response contains required identity fields.
-    def test_get_authenticated_user_payload(self, client):
-        response = client.get(USER)
-        body = response["json"]
-        assert "login" in body, "Missing 'login' field"
-        assert "id" in body,    "Missing 'id' field"
-
-# Validate GET /user responds within acceptable performance threshold.
-    def test_get_authenticated_user_response_time(self, client):
-        response = client.get(USER)
-        assert response["response_time"] < PERFORMANCE_THRESHOLD, (
-            f"Response too slow: {response['response_time']:.3f}s"
-        )
 
 # Full CRUD lifecycle test against a real GitHub repo. Tests run: Create → Read → Update → Delete.
 # Each step validates status code, payload, schema, and response time.

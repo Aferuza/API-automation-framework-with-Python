@@ -1,35 +1,21 @@
-# src/utils/config.py
-
 import os
 from dotenv import load_dotenv
 
-# Load variables from .env file into environment
 load_dotenv()
 
-# ── API Config ─────────────────────────────────────────────────────────────────
-API_BASE_URL          = os.getenv("API_BASE_URL")
-TIMEOUT               = int(os.getenv("TIMEOUT", 10))
-PERFORMANCE_THRESHOLD = float(os.getenv("PERFORMANCE_THRESHOLD", 1.5))
+def _require(var_name: str) -> str:
+    """Fetch a required env variable or raise immediately with a clear message."""
+    value = os.getenv(var_name)
+    if not value:
+        raise RuntimeError(
+            f"Missing required environment variable: '{var_name}'. "
+            f"Check your .env file locally or GitHub Actions secrets in CI."
+        )
+    return value
 
-# ── Auth ───────────────────────────────────────────────────────────────────────
-AUTH_TOKEN            = os.getenv("AUTH_TOKEN")
-
-# ── GitHub Identity ────────────────────────────────────────────────────────────
-GITHUB_USERNAME       = os.getenv("GITHUB_USERNAME")  # fills {owner} in endpoint templates
-GITHUB_REPO           = os.getenv("GITHUB_REPO")       # fills {repo} in endpoint templates
-
-# ── Validation — fail immediately if critical values are missing ───────────────
-# Catches missing .env values before any test runs
-# Much clearer than a cryptic 401 or URL error mid-test
-
-if not API_BASE_URL:
-    raise RuntimeError("API_BASE_URL is missing from .env")
-
-if not AUTH_TOKEN:
-    raise RuntimeError("AUTH_TOKEN is missing from .env")
-
-if not GITHUB_USERNAME:
-    raise RuntimeError("GITHUB_USERNAME is missing from .env")
-
-if not GITHUB_REPO:
-    raise RuntimeError("GITHUB_REPO is missing from .env")
+API_BASE_URL = _require("API_BASE_URL")
+AUTH_TOKEN = _require("AUTH_TOKEN")
+GITHUB_USERNAME = _require("GHUB_USERNAME") # matches secret name GH_USERNAME
+GITHUB_REPO = _require("GHUB_REPO")
+TIMEOUT = float(os.getenv("TIMEOUT", "10"))
+PERFORMANCE_THRESHOLD = float(os.getenv("PERFORMANCE_THRESHOLD", "1.5"))
