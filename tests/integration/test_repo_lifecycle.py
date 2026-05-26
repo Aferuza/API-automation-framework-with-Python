@@ -7,11 +7,6 @@ from src.api.api_client import APIClient
 from src.api.endpoints import USER, USER_REPOS, REPO
 from src.utils.config import GITHUB_USERNAME, GITHUB_REPO, PERFORMANCE_THRESHOLD
 
-'''Purpose:
-1. Validates authentication + contract of the GitHub API (/user)
-2. Executes a full CRUD workflow on GitHub repositories
-3. Executed through a reusable API client, under pytest control'''
-
 # Load JSON schemas once per test session — used for contract testing.
 def load_user_schema():
 #Read and parse the user schema from disk."""
@@ -35,8 +30,6 @@ def assert_valid_schema(data: dict, schema: dict, label: str):
 
 
 #Tests
-
-
 # Full CRUD lifecycle test against a real GitHub repo. Tests run: Create → Read → Update → Delete.
 # Each step validates status code, payload, schema, and response time.
 class TestRepoLifecycle:
