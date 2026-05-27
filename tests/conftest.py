@@ -3,9 +3,6 @@ import pytest
 from src.api.api_client import APIClient
 from tests.integration.test_repo_lifecycle import load_user_schema, load_repo_schema
 
-
-# PyTest Fixtures:
-# Reusable API client for all GitHub API tests in this module.
 @pytest.fixture(scope="module")
 def client():
 

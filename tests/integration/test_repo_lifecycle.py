@@ -7,11 +7,6 @@ from src.api.api_client import APIClient
 from src.api.endpoints import USER, USER_REPOS, REPO
 from src.utils.config import GITHUB_USERNAME, GITHUB_REPO, PERFORMANCE_THRESHOLD
 
-'''Purpose:
-1. Validates authentication + contract of the GitHub API (/user)
-2. Executes a full CRUD workflow on GitHub repositories
-3. Executed through a reusable API client, under pytest control'''
-
 # Load JSON schemas once per test session — used for contract testing.
 def load_user_schema():
 #Read and parse the user schema from disk."""
@@ -23,8 +18,6 @@ def load_repo_schema():
     with open("src/validation/schemas/repo_schema.json") as f:
         return json.load(f)
 
-
-
 # Validates a response payload against a JSON schema.
 #     Wraps jsonschema.validate() with a clear failure message.
 def assert_valid_schema(data: dict, schema: dict, label: str):
@@ -33,10 +26,7 @@ def assert_valid_schema(data: dict, schema: dict, label: str):
     except ValidationError as e:
         pytest.fail(f"Schema validation failed for [{label}]: {e.message}")
 
-
 #Tests
-
-
 # Full CRUD lifecycle test against a real GitHub repo. Tests run: Create → Read → Update → Delete.
 # Each step validates status code, payload, schema, and response time.
 class TestRepoLifecycle:
@@ -103,7 +93,6 @@ class TestRepoLifecycle:
         )
 
 # Validate GET /repos/{owner}/{repo} responds within performance threshold.
-
     def test_repo_performance(self, client):
         endpoint = REPO.format(owner=GITHUB_USERNAME, repo=GITHUB_REPO)
         response = client.get(endpoint)
@@ -129,18 +118,18 @@ class TestRepoLifecycle:
         assert response["status_code"] == 401
 
     # 2. Duplicate repo creation
-    def test_create_duplicate_repo(self):
+    def test_create_duplicate_repo(self, client):
         # assumes repo already exists
         response = client.post("/user/repos", body={"name": GITHUB_REPO})
         assert response["status_code"] == 422
 
     # 3. Get non-existent repo
-    def test_get_nonexistent_repo(self):
+    def test_get_nonexistent_repo(self, client):
         response = client.get("/repos/Aferuza/this-repo-does-not-exist-xyz")
         assert response["status_code"] == 404
 
     # 4. Missing required field in request body
-    def test_create_repo_without_name(self):
+    def test_create_repo_without_name(self, client):
         response = client.post("/user/repos", body={"description": "no name"})
         assert response["status_code"] == 422
 

@@ -26,6 +26,7 @@ def generate_report(status, time):
     # Write report to file
     with open("results/report.html", "w") as f:
         f.write(html)
+
 # FIX: Pass arguments to the function call
 # In a real scenario, these values would come from your test execution logic
 if __name__ == "__main__":
