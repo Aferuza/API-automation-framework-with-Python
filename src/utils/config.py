@@ -15,7 +15,7 @@ def _require(var_name: str) -> str:
 
 API_BASE_URL = _require("API_BASE_URL")
 AUTH_TOKEN = _require("AUTH_TOKEN")
-GITHUB_USERNAME = _require("GHUB_USERNAME") # matches secret name GH_USERNAME
+GITHUB_USERNAME = _require("GHUB_USERNAME")
 GITHUB_REPO = _require("GHUB_REPO")
 TIMEOUT = float(os.getenv("TIMEOUT", "10"))
 PERFORMANCE_THRESHOLD = float(os.getenv("PERFORMANCE_THRESHOLD", "1.5"))

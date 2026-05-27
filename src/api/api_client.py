@@ -4,7 +4,7 @@ import time
 import requests
 from src.auth.auth_client import get_auth_headers
 from src.utils.config import API_BASE_URL, TIMEOUT
-from src.utils.logger import logger
+#from src.utils.logger import logger
 
 
 class APIClient:

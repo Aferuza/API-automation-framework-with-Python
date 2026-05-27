@@ -1,8 +1,6 @@
 
 Why I Built This?
-I've been in QA for six years. I've seen a lot of "automation frameworks" that are really just a
-single test file hitting a mock server, wrapped in a pytest class, uploaded to GitHub the night
-before an interview.
+I've been in QA automation for three years. I've seen "automation frameworks" that are really just a single test file hitting a mock server, wrapped in a pytest class and do not support separation of concerns creating Spaghetti-code.
 This isn't that.
 I wanted to build something I could be asked about in a technical interview and defend every
 single decision — why the APIClient is a separate layer, why config validates at import time,
@@ -162,15 +160,23 @@ API-automation-framework-with-Python/
 │   ├── validation/
 │   │   └── schemas/
 │   │       ├── schema_validator.py # jsonschema wrapper with clear error messages
-│   │       └── user_schema.json    # JSON Schema contract for GET /user
+│   │       └── repo_schema.json    # JSON Schema contract for GET /user
 │   └── reporting/
 │       └── report_generator.py     # HTML report builder
 │
 ├── tests/
-│   ├── conftest.py                 # Pytest fixtures (client, schemas)
-│   └── test_users_api.py           # All test classes
-│
-├── reports/                        # Generated HTML test reports land here
+    ├── integration/
+    │   └── test_repo_lifecycle.py     # End-to-end integration tests tracking actual                                            state lifecycles
+    │
+    ├── mocked/
+    │   └── test_users_api_mocked.py   # Isolated API tests using mocked          responses/substitutes
+    │
+    ├── unit/
+    │   └── test_auth_client.py        # Micro-level tests for validating individual client functions
+    │
+    ├── conftest.py                    # Global Pytest fixtures (e.g., shared clients,                                            schemas)
+    │
+├── reporting/                        # Generated HTML test reports land here
 ├── results/                        # Raw JSON results
 ├── get_jwt_token.py                # GitHub Apps JWT generator (enterprise auth)
 ├── run_tests.py                    # Entry point — runs pytest + report
