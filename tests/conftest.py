@@ -1,34 +1,48 @@
+import json
 import pytest
+from pathlib import Path
 
-from src.api.endpoints import USER_REPOS, REPO
 from src.api.api_client import APIClient
-from tests.integration.test_repo_lifecycle import load_user_schema, load_repo_schema
+from src.api.endpoints import USER_REPOS, REPO
 from src.utils.config import GITHUB_REPO, GITHUB_USERNAME
+
+ROOT = Path(__file__).parent.parent
+
+
+def load_user_schema() -> dict:
+    with open(ROOT / "src" / "validation" / "schemas" / "user_schema.json") as f:
+        return json.load(f)
+
+
+def load_repo_schema() -> dict:
+    with open(ROOT / "src" / "validation" / "schemas" / "repo_schema.json") as f:
+        return json.load(f)
 
 
 @pytest.fixture(scope="module")
 def client():
-
     return APIClient()
-#     Used to validate response contract — detects breaking API changes.
+
 
 @pytest.fixture(scope="module")
 def user_schema():
     return load_user_schema()
 
-#  Validates structure on create, read, and update responses.
+
 @pytest.fixture(scope="module")
 def repo_schema():
-     return load_repo_schema()
+    return load_repo_schema()
 
 
 @pytest.fixture(scope="module")
 def managed_repo(client):
-    """Creates the repo before tests, deletes it after — guaranteed."""
     client.post(USER_REPOS, body={
         "name": GITHUB_REPO,
         "private": False,
         "auto_init": True
     })
-    yield  # tests run here
-    client.delete(REPO.format(owner=GITHUB_USERNAME, repo=GITHUB_REPO))
+    yield
+    response = client.delete(REPO.format(owner=GITHUB_USERNAME, repo=GITHUB_REPO))
+    assert response["status_code"] in (204, 404), (
+        f"Unexpected status during teardown delete: {response['status_code']}"
+    )
