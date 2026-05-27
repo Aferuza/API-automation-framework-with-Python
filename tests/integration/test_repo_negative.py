@@ -6,7 +6,7 @@ from src.api.api_client import APIClient
 
 
 class NegativeTests():
-# 1. Invalid authentication
+    # 1. Invalid authentication
     def test_get_user_with_invalid_token(self):
         bad_client = APIClient(token="ghp_thisisafaketoken")
         response = bad_client.get("/user")

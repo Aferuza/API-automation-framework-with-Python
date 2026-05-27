@@ -35,7 +35,6 @@ class APIClient:
             return {}
 
     def request(self, method: str, endpoint: str, body=None) -> dict:
-     
         url = f"{self.base_url}{endpoint}"  # Build full URL: base + path
         start = time.time()                 # Start timer before the request is sent
 

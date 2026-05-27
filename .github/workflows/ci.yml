@@ -10,26 +10,89 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2        # pinned — supports Node.js 24
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5.6.0    # pinned — supports Node.js 24
         with:
           python-version: "3.11"
 
-      - run: pip install flake8
+      - name: Install flake8
+        run: pip install flake8
 
-      - run: flake8 src/ tests/ --max-line-length=100
+      - name: Run flake8 lint
+        # --max-line-length=100  matches your local config
+        # --exclude=.venv        prevents linting installed packages
+        # E501 is line-too-long — already covered by max-line-length
+        run: flake8 src/ tests/ --max-line-length=100 --exclude=.venv
 
 
   mocked-tests:
-    needs: lint
+    needs: lint          # only runs if lint passes — fast feedback loop
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run mocked tests
+        # Mocked tests require NO secrets — they intercept HTTP with responses library
+        # This is the only job that runs on every push safely
+        # Integration tests are excluded because they need a real GitHub token
+        run: pytest tests/mocked/ -v --tb=short
+
+      - name: Upload test report
+        # Uploads HTML report as a CI artifact — visible in the Actions run summary
+        # always() ensures the report uploads even if tests fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mocked-test-report
+          path: reports/
+
+
+  integration-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    # Integration tests only run on push to main — not on every PR
+    # because they hit the real GitHub API and require secrets
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    env:
+      # These come from GitHub repo Settings → Secrets and variables → Actions
+      # Never hardcode tokens — GitHub will automatically revoke them if found in code
+      API_BASE_URL: https://api.github.com
+      AUTH_TOKEN: ${{ secrets.GITHUB_PAT }}
+      GITHUB_USERNAME: ${{ secrets.GITHUB_USERNAME }}
+      GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+      TIMEOUT: 10
+      PERFORMANCE_THRESHOLD: 2.0    # CI runners are slower than local — use 2.0 not 1.5
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run integration tests
+        run: pytest tests/integration/ tests/unit/ -v --tb=short
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-report
+          path: reports/
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"

@@ -1,4 +1,4 @@
-#function scoped mock fixture
+# function scoped mock fixture
 import pytest
 
 from src.api.api_client import APIClient
