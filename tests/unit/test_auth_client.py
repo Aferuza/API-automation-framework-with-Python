@@ -1,3 +1,5 @@
+import pytest
+
 from src.api.endpoints import USER
 from tests.integration.test_repo_lifecycle import assert_valid_schema
 import src.utils.config
@@ -5,30 +7,30 @@ from src.utils.config import PERFORMANCE_THRESHOLD
 
 
 class TestAuthenticatedUser:
+    """
+    Validates GET /user — confirms token is valid, identity fields are present,
+    response matches the schema contract, and performance is within threshold.
+    """
 
-#Validate the /user endpoint. Confirms token is valid, scopes are correct, and response matches schema.
-    def test_get_authenticated_user_status(self, client):
-        """GET /user returns 200 for a valid token."""
-        response = client.get(USER)
-        assert response["status_code"] == 200, (
-            f"Expected 200, got {response['status_code']}"
+    @pytest.fixture(autouse=True)
+    def user_response(self, client):
+        """Fetch GET /user once. All tests in this class assert against this response."""
+        self._response = client.get(USER)
+
+    def test_status_is_200(self):
+        assert self._response["status_code"] == 200, (
+            f"Expected 200, got {self._response['status_code']}"
         )
 
-# Validate response matches the defined JSON schema contract.
-    def test_get_authenticated_user_schema(self, client, user_schema):
-        response = client.get(USER)
-        assert_valid_schema(response["json"], user_schema, "/user")
+    def test_schema_contract(self, user_schema):
+        assert_valid_schema(self._response["json"], user_schema, "GET /user")
 
-#  response contains required identity fields.
-    def test_get_authenticated_user_payload(self, client):
-        response = client.get(USER)
-        body = response["json"]
+    def test_payload_contains_identity_fields(self):
+        body = self._response["json"]
         assert "login" in body, "Missing 'login' field"
         assert "id" in body,    "Missing 'id' field"
 
-# Validate GET /user responds within acceptable performance threshold.
-    def test_get_authenticated_user_response_time(self, client):
-        response = client.get(USER)
-        assert response["response_time"] < PERFORMANCE_THRESHOLD, (
-            f"Response too slow: {response['response_time']:.3f}s"
+    def test_response_time_within_threshold(self):
+        assert self._response["response_time"] < PERFORMANCE_THRESHOLD, (
+            f"Response too slow: {self._response['response_time']:.3f}s"
         )

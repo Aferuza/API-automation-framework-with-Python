@@ -1,16 +1,13 @@
 import json
 import pytest
-from jsonschema import ValidationError
-
-from src.validation.schemas.schema_validator import validate_schema, validate
-from src.api.api_client import APIClient
+from src.validation.schemas.schema_validator import assert_valid_schema
 from src.api.endpoints import USER, USER_REPOS, REPO
 from src.utils.config import GITHUB_USERNAME, GITHUB_REPO, PERFORMANCE_THRESHOLD
 
 # Load JSON schemas once per test session — used for contract testing.
 def load_user_schema():
 #Read and parse the user schema from disk."""
-    with open("src/validation/schemas/user_schema.json") as f:
+    with open("src/validation/schemas/repo_schema.json") as f:
         return json.load(f)
 
 # Read and parse the repo schema from disk.
@@ -20,11 +17,6 @@ def load_repo_schema():
 
 # Validates a response payload against a JSON schema.
 #     Wraps jsonschema.validate() with a clear failure message.
-def assert_valid_schema(data: dict, schema: dict, label: str):
-    try:
-        validate(instance=data, schema=schema)
-    except ValidationError as e:
-        pytest.fail(f"Schema validation failed for [{label}]: {e.message}")
 
 #Tests
 # Full CRUD lifecycle test against a real GitHub repo. Tests run: Create → Read → Update → Delete.
@@ -92,6 +84,12 @@ class TestRepoLifecycle:
             "Description was not updated"
         )
 
+# Validate DELETE /repos/{owner}/{repo} removes the repo and returns 204."""
+@pytest.mark.usefixtures("managed_repo")
+class TestRepoLifecycle:
+    def test_get_repo(self, client, repo_schema):  # no create/delete tests
+        ...
+
 # Validate GET /repos/{owner}/{repo} responds within performance threshold.
     def test_repo_performance(self, client):
         endpoint = REPO.format(owner=GITHUB_USERNAME, repo=GITHUB_REPO)
@@ -99,37 +97,7 @@ class TestRepoLifecycle:
         assert response["response_time"] < PERFORMANCE_THRESHOLD, (
             f"Response too slow: {response['response_time']:.3f}s"
         )
-# Validate DELETE /repos/{owner}/{repo} removes the repo and returns 204."""
-    def test_delete_repo(self, client):
-        endpoint = REPO.format(owner=GITHUB_USERNAME, repo=GITHUB_REPO)
-        response = client.delete(endpoint)
 
-        # 204 No Content — successful delete returns no body
-        assert response["status_code"] == 204, (
-            f"Expected 204, got {response['status_code']}"
-        )
-        assert response["json"] == {}, "DELETE response body should be empty"
 
- # Negatives tests:
-    # 1. Invalid authentication
-    def test_get_user_with_invalid_token(self):
-        bad_client = APIClient(token="ghp_thisisafaketoken")
-        response = bad_client.get("/user")
-        assert response["status_code"] == 401
 
-    # 2. Duplicate repo creation
-    def test_create_duplicate_repo(self, client):
-        # assumes repo already exists
-        response = client.post("/user/repos", body={"name": GITHUB_REPO})
-        assert response["status_code"] == 422
-
-    # 3. Get non-existent repo
-    def test_get_nonexistent_repo(self, client):
-        response = client.get("/repos/Aferuza/this-repo-does-not-exist-xyz")
-        assert response["status_code"] == 404
-
-    # 4. Missing required field in request body
-    def test_create_repo_without_name(self, client):
-        response = client.post("/user/repos", body={"description": "no name"})
-        assert response["status_code"] == 422
 

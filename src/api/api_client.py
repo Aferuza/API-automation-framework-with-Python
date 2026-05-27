@@ -1,86 +1,88 @@
-from src.utils.config import API_BASE_URL, AUTH_TOKEN, TIMEOUT
-from src.utils.logger import logger
-import time
-import requests
-from src.auth.auth_client import get_auth_headers
-from src.utils.config import API_BASE_URL, TIMEOUT
-#from src.utils.logger import logger
+import time                          # Used to measure response duration in request()
+import requests                      # HTTP client — drives all API calls via Session
+from src.utils.config import API_BASE_URL, AUTH_TOKEN, TIMEOUT  # Environment-loaded config
+from src.utils.logger import logger  # Shared logger instance — writes to console and file
 
 
 class APIClient:
 
-    def __init__(self):
-        self.base_url = API_BASE_URL
-        self.headers = {
-            "Authorization": f"Bearer {AUTH_TOKEN}",
-            "Accept": "application/vnd.github+json"
-        }
+    def __init__(self, token: str = AUTH_TOKEN):
 
-    def request(self, method: str, endpoint: str, json_body=None) -> dict:
-        """ executes all HTTP requests.  Called internally by get(), post(), patch(), delete()."""
+        self.base_url = API_BASE_URL  # e.g. https://api.github.com — no trailing slash
+        self.timeout = TIMEOUT        # Max seconds to wait for a response before Timeout
+        self.logger = logger          # Shared logger — same instance across all modules
 
-        # Combine base URL + endpoint path into the full request URL
-        url = f"{self.base_url}{endpoint}"
+        self.session = requests.Session()
+        self.session.headers.update({
+            "Authorization": f"Bearer {token}",       # GitHub PAT auth
+            "Accept": "application/vnd.github+json"   # Tells GitHub to return v3 JSON
+        })
 
-        # Fetch auth headers fresh on every request and supports token rotation/refresh without restarting the client
-        headers = get_auth_headers()
+    def _safe_json(self, response: requests.Response) -> dict:
+        """
+        Parses the response body as JSON, returning an empty dict if there is no body.
 
-        # Record start time before the request is sent
-        start = time.time()
+        Why this exists:
+            DELETE /repos/{owner}/{repo} returns 204 No Content — an empty body.
+            Calling response.json() on an empty body raises JSONDecodeError.
+            This method handles that case gracefully so tests can always do:
+                assert response["json"] == {}
+            instead of crashing on 204 responses.
+        """
+        try:
+            return response.json()
+        except Exception:
+            return {}
+
+    def request(self, method: str, endpoint: str, body=None) -> dict:
+     
+        url = f"{self.base_url}{endpoint}"  # Build full URL: base + path
+        start = time.time()                 # Start timer before the request is sent
 
         try:
-            response = requests.request(
-                method=method,
-                url=url,
-                headers=headers,
-                json=json_body,  # automatically sets Content-Type: application/json
-                timeout=TIMEOUT  # prevents tests hanging on unresponsive endpoints
+            response = self.session.request(
+                method, url, json=body, timeout=self.timeout
+                # json=body: serializes body dict to JSON and sets Content-Type automatically
+                # timeout: raises Timeout if the server doesn't respond in time
             )
+            elapsed = time.time() - start  # Capture round-trip duration
 
-            # Raise immediately on 4xx/5xx so tests fail fast with a clear error
-            response.raise_for_status()
+            # Log outcome — error level for 4xx/5xx, info for success
+            # This appears in your terminal with -s and in log files in CI
+            if response.status_code >= 400:
+                self.logger.error(
+                    f"HTTP ERROR {method} {endpoint} -> {response.status_code}"
+                )
+            else:
+                self.logger.info(
+                    f"{method} {endpoint} -> {response.status_code} ({elapsed:.3f}s)"
+                )
+
+            return {
+                "status_code": response.status_code,
+                "json": self._safe_json(response),  # Response body — NOT the request body
+                "headers": dict(response.headers),  # Cast to plain dict for easy assertions
+                "response_time": elapsed            # Used in performance threshold tests
+            }
 
         except requests.exceptions.Timeout:
-            # Server did not respond within TIMEOUT seconds
-            logger.error(f"TIMEOUT {method} {endpoint}")
+            # Server took longer than self.timeout seconds — log and re-raise
+            # Re-raising lets pytest mark the test as ERROR (not FAILED) with a clear message
+            self.logger.error(f"TIMEOUT {method} {endpoint}")
             raise
 
-        except requests.exceptions.HTTPError as e:
-            # Non-2xx response — log status code for quick diagnosis
-            logger.error(f"HTTP ERROR {method} {endpoint} -> {e.response.status_code}")
+        except requests.exceptions.ConnectionError:
+            # Network unreachable, DNS failure, refused connection
+            # Raised when the request never reaches the server at all
+            self.logger.error(f"CONNECTION ERROR {method} {endpoint}")
             raise
 
-        except requests.exceptions.RequestException as e:
-            # Catch-all for network errors: DNS failure, connection refused, etc.
-            logger.error(f"REQUEST FAILED {method} {endpoint} -> {e}")
-            raise
-
-        # Calculate total round-trip time after a successful response
-        elapsed = time.time() - start
-
-        # Log method, path, status code, and duration for every successful call
-        logger.info(f"{method} {endpoint} -> {response.status_code} ({elapsed:.3f}s)")
-
-        # Safely parse JSON — returns empty dict if body is empty or not valid JSON
-        # Prevents crashes on endpoints that return no content e.g. 204 DELETE
-        try:
-            body = response.json()
-        except ValueError:
-            body = {}
-
-        # Return structured dict so tests can assert on any part of the response
-        return {
-            "status_code": response.status_code,  # e.g. 200, 201, 204
-            "json": body,                          # parsed response payload
-            "headers": dict(response.headers),     # cast to dict for easy assertions
-            "response_time": elapsed               # used for performance threshold checks
-        }
-
-    # ── Convenience Methods ────────────────────────────────────────────────────
-    # Wrap request() to give tests a clean, readable interface
+    # ── Convenience Methods ───────────────────────────────────────────────────
+    # Thin wrappers around request() — give tests a clean, readable interface.
+    # Tests call client.get("/user") instead of client.request("GET", "/user").
 
     def get(self, endpoint: str) -> dict:
-        """Sends a GET request. Used to read and fetch resources."""
+        """Sends a GET request. Used to read/fetch resources."""
         return self.request("GET", endpoint)
 
     def post(self, endpoint: str, body: dict = None) -> dict:
