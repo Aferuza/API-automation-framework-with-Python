@@ -1,21 +1,20 @@
-import time                          # Used to measure response duration in request()
-import requests                      # HTTP client — drives all API calls via Session
-from src.utils.config import API_BASE_URL, AUTH_TOKEN, TIMEOUT  # Environment-loaded config
-from src.utils.logger import logger  # Shared logger instance — writes to console and file
+import time
+import requests
+from src.utils.config import API_BASE_URL, AUTH_TOKEN, TIMEOUT
+from src.utils.logger import logger
 
 
 class APIClient:
 
-    def __init__(self, token: str = AUTH_TOKEN):
-
-        self.base_url = API_BASE_URL  # e.g. https://api.github.com — no trailing slash
-        self.timeout = TIMEOUT        # Max seconds to wait for a response before Timeout
-        self.logger = logger          # Shared logger — same instance across all modules
+    def __init__(self, token: str = AUTH_TOKEN, base_url: str = API_BASE_URL):
+        self.base_url = base_url  # Injected — defaults to config value
+        self.timeout = TIMEOUT
+        self.logger = logger
 
         self.session = requests.Session()
         self.session.headers.update({
-            "Authorization": f"Bearer {token}",       # GitHub PAT auth
-            "Accept": "application/vnd.github+json"   # Tells GitHub to return v3 JSON
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json"
         })
 
     def _safe_json(self, response: requests.Response) -> dict:
