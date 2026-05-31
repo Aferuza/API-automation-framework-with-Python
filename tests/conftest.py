@@ -1,7 +1,7 @@
 import json
 import pytest
 from pathlib import Path
-from src.utils.config import API_BASE_URL, AUTH_TOKEN, GITHUB_USERNAME, GITHUB_REPO
+from src.utils.config import API_BASE_URL, AUTH_TOKEN
 from src.api.api_client import APIClient
 from src.api.endpoints import USER_REPOS, REPO
 from src.utils.config import GITHUB_REPO, GITHUB_USERNAME
