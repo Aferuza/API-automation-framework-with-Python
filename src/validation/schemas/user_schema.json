@@ -1,0 +1,182 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GitHub Authenticated User",
+  "description": "Contract schema for GET /user — validated against Aferuza account response May 2026",
+  "type": "object",
+  "required": [
+    "login",
+    "id",
+    "node_id",
+    "avatar_url",
+    "gravatar_id",
+    "url",
+    "html_url",
+    "followers_url",
+    "following_url",
+    "gists_url",
+    "starred_url",
+    "subscriptions_url",
+    "organizations_url",
+    "repos_url",
+    "events_url",
+    "received_events_url",
+    "type",
+    "site_admin",
+    "public_repos",
+    "public_gists",
+    "followers",
+    "following",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "login": {
+      "type": "string",
+      "description": "GitHub username",
+      "minLength": 1
+    },
+    "id": {
+      "type": "integer",
+      "description": "Unique numeric user ID",
+      "minimum": 1
+    },
+    "node_id": {
+      "type": "string",
+      "description": "GraphQL global node ID",
+      "minLength": 1
+    },
+    "avatar_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the user's avatar image"
+    },
+    "gravatar_id": {
+      "type": "string",
+      "description": "Gravatar ID — empty string if not set"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "API URL for this user"
+    },
+    "html_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "GitHub profile URL"
+    },
+    "followers_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "following_url": {
+      "type": "string",
+      "description": "Templated URL — contains {/other_user}"
+    },
+    "gists_url": {
+      "type": "string",
+      "description": "Templated URL — contains {/gist_id}"
+    },
+    "starred_url": {
+      "type": "string",
+      "description": "Templated URL — contains {/owner}{/repo}"
+    },
+    "subscriptions_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "organizations_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "repos_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "events_url": {
+      "type": "string",
+      "description": "Templated URL — contains {/privacy}"
+    },
+    "received_events_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["User", "Organization", "Bot"],
+      "description": "Account type — must be one of the known GitHub account types"
+    },
+    "user_view_type": {
+      "type": "string",
+      "description": "Visibility scope of the user view returned by the API"
+    },
+    "site_admin": {
+      "type": "boolean",
+      "description": "True only for GitHub staff accounts"
+    },
+    "name": {
+      "type": ["string", "null"],
+      "description": "Display name — null if not set"
+    },
+    "company": {
+      "type": ["string", "null"],
+      "description": "Company name — null if not set"
+    },
+    "blog": {
+      "type": ["string", "null"],
+      "description": "Blog or website URL — empty string if not set"
+    },
+    "location": {
+      "type": ["string", "null"],
+      "description": "User location — null if not set"
+    },
+    "email": {
+      "type": ["string", "null"],
+      "description": "Public email — null if not set or private"
+    },
+    "hireable": {
+      "type": ["boolean", "null"],
+      "description": "Hireable flag — null if not set"
+    },
+    "bio": {
+      "type": ["string", "null"],
+      "description": "Profile bio — null if not set"
+    },
+    "twitter_username": {
+      "type": ["string", "null"],
+      "description": "Twitter handle — null if not set"
+    },
+    "notification_email": {
+      "type": ["string", "null"],
+      "description": "Notification email — null if not set or private"
+    },
+    "public_repos": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of public repositories"
+    },
+    "public_gists": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of public gists"
+    },
+    "followers": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "following": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 account creation timestamp"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 last profile update timestamp"
+    }
+  },
+  "additionalProperties": true
+}
