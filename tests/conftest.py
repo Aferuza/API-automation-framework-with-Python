@@ -1,7 +1,8 @@
 import json
 import pytest
 from pathlib import Path
-
+from src.api.api_client import APIClient
+from src.utils.config import API_BASE_URL, AUTH_TOKEN, GITHUB_USERNAME, GITHUB_REPO
 from src.api.api_client import APIClient
 from src.api.endpoints import USER_REPOS, REPO
 from src.utils.config import GITHUB_REPO, GITHUB_USERNAME
@@ -21,8 +22,10 @@ def load_repo_schema() -> dict:
 
 @pytest.fixture(scope="module")
 def client():
-    return APIClient()
-
+    # Only raise here — mocked tests never call this fixture
+    if not API_BASE_URL or not AUTH_TOKEN:
+        pytest.skip("Live credentials not configured — skipping live tests")
+    return APIClient(base_url=API_BASE_URL, token=AUTH_TOKEN)
 
 @pytest.fixture(scope="module")
 def user_schema():

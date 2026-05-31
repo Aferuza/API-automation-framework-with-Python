@@ -12,11 +12,11 @@ def _require(var_name: str) -> str:
         )
     return value
 
+# Lazy: read at import, but don't raise — let the fixture raise
+API_BASE_URL = os.getenv("API_BASE_URL", "")
+AUTH_TOKEN   = os.getenv("AUTH_TOKEN", "")
+GITHUB_USERNAME = os.getenv("GITHUB_USERNAME", "")
+GITHUB_REPO     = os.getenv("GITHUB_REPO", "")
 
-API_BASE_URL = _require("API_BASE_URL")
-AUTH_TOKEN = _require("AUTH_TOKEN")
-GITHUB_USERNAME = _require("GITHUB_USERNAME")
-GITHUB_REPO = _require("GITHUB_REPO")
-
-TIMEOUT = float(os.getenv("TIMEOUT", "10"))
+TIMEOUT               = float(os.getenv("TIMEOUT", "10"))
 PERFORMANCE_THRESHOLD = float(os.getenv("PERFORMANCE_THRESHOLD", "1.5"))
