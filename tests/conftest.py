@@ -8,7 +8,6 @@ from src.utils.config import GITHUB_REPO, GITHUB_USERNAME
 
 ROOT = Path(__file__).parent.parent
 
-
 def load_user_schema() -> dict:
     with open(ROOT / "src" / "validation" / "schemas" / "user_schema.json") as f:
         return json.load(f)
