@@ -1,3 +1,5 @@
+![CI](https://github.com/Aferuza/API-automation-framework-with-Python/actions/workflows/ci.yml/badge.svg)
+
 # API Automation Framework — Python + pytest + GitHub Actions
 
 ## Why I Built This
