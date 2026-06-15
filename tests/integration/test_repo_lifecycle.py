@@ -8,22 +8,20 @@ from src.utils.config import GITHUB_USERNAME, GITHUB_REPO, PERFORMANCE_THRESHOLD
 class TestRepoLifecycle:
 
     def test_create_repo(self, client, repo_schema):
-        """
-        POST /user/repos — creates a new public repository.
-        201 Created confirms the repo was created and the token has repo scope.
-        Schema validation catches any structural changes to the creation response.
-        """
         response = client.post(USER_REPOS, body={
             "name": GITHUB_REPO,
             "description": "Created by API automation framework",
-            "private": False,   # Public repo — no private repo quota consumed
-            "auto_init": True   # Initializes with a README so the repo is non-empty
+            "private": False,
+            "auto_init": True
         })
+
+        if response["status_code"] != 201:
+            print("GITHUB ERROR BODY:", response["json"])
+            print("GITHUB_REPO value:", repr(GITHUB_REPO))
 
         assert response["status_code"] == 201, (
             f"Expected 201 Created, got {response['status_code']}"
         )
-
         # Contract check — if GitHub changes the repo creation response structure,
         # this fails immediately with a clear field-level error message
         assert_valid_schema(response["json"], repo_schema, "POST /user/repos")
@@ -31,6 +29,22 @@ class TestRepoLifecycle:
         body = response["json"]
         assert body["name"] == GITHUB_REPO, "Repo name mismatch"
         assert body["private"] is False,    "Repo should be public"
+
+    from src.api.api_client import APIClient
+    from src.api.endpoints import USER_REPOS
+    from src.utils.config import GITHUB_REPO
+
+    client = APIClient()
+    response = client.post(USER_REPOS, body={
+        "name": GITHUB_REPO,
+        "description": "test",
+        "private": False,
+        "auto_init": True
+    })
+    print(response["status_code"])
+    print(response["json"])
+    print(repr(GITHUB_REPO))  # repr shows hidden quotes/whitespace
+
 
     def test_get_repo(self, client, repo_schema):
         """
