@@ -30,22 +30,6 @@ class TestRepoLifecycle:
         assert body["name"] == GITHUB_REPO, "Repo name mismatch"
         assert body["private"] is False,    "Repo should be public"
 
-    from src.api.api_client import APIClient
-    from src.api.endpoints import USER_REPOS
-    from src.utils.config import GITHUB_REPO
-
-    client = APIClient()
-    response = client.post(USER_REPOS, body={
-        "name": GITHUB_REPO,
-        "description": "test",
-        "private": False,
-        "auto_init": True
-    })
-    print(response["status_code"])
-    print(response["json"])
-    print(repr(GITHUB_REPO))  # repr shows hidden quotes/whitespace
-
-
     def test_get_repo(self, client, repo_schema):
         """
         GET /repos/{owner}/{repo} — fetches repo metadata after creation.
@@ -105,3 +89,4 @@ class TestRepoLifecycle:
             f"Response too slow: {response['response_time']:.3f}s "
             f"(threshold: {PERFORMANCE_THRESHOLD}s)"
         )
+
