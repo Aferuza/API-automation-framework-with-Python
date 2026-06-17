@@ -1,9 +1,7 @@
 import pytest
 import utils.string_validator
 from src.utils.string_validator import build_repo_endpoint, build_collaborators_url
-
 from run_tests import result
-from utils.string_validator import validate_collaborators_url
 
 
 class TestStringValidator:
@@ -45,8 +43,8 @@ class TestStringValidator:
     def test_various_owner_repo_combinations(self, owner, repo, expected):
         assert build_repo_endpoint(owner, repo) == expected
 
-     def test_validate_collaborators_url(self, owner, repo):
-        result=validate_collaborators_url("Magicat", "My-tet-repo")
+    def test_validate_collaborators_url(self, owner, repo):
+        result=build_collaborators_url("Magicat", "My-tet-repo")
         assert result == "/repos/Magicat/My-tet-repo"
 
     def test_build_collaborators_url(self):
