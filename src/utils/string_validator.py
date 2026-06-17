@@ -1,6 +1,5 @@
 import re
 
-
 def build_repo_endpoint(owner: str, repo: str) -> str:
     owner = owner.strip()
     repo = repo.strip()

@@ -46,8 +46,8 @@ class TestStringValidator:
         assert build_repo_endpoint(owner, repo) == expected
 
      def test_validate_collaborators_url(self, owner, repo):
-         result=validate_collaborators_url("Magicat", "My-tet-repo")
-         assert result == "/repos/Magicat/My-tet-repo"
+        result=validate_collaborators_url("Magicat", "My-tet-repo")
+        assert result == "/repos/Magicat/My-tet-repo"
 
     def test_build_collaborators_url(self):
         result = build_collaborators_url("Magicat", "My-tet-repo", "octocat")
