@@ -2,19 +2,6 @@ import re
 
 
 def build_repo_endpoint(owner: str, repo: str) -> str:
-    """
-    REAL USE CASE: In endpoints.py I have:
-        REPO = "/repos/{owner}/{repo}"
-    Your APIClient needs to turn that template into a real path before
-    sending the HTTP request.
-
-        - str.strip()  -> remove accidental whitespace from env vars
-        - f-strings    -> inject variables into the URL template
-
-        If owner or repo has a trailing space (common when copying from a
-        .env file), your request will hit "/repos/Aferuza /my-repo " -> 404.
-        strip() is your safety net.
-    """
     owner = owner.strip()
     repo = repo.strip()
     return f"/repos/{owner}/{repo}"
