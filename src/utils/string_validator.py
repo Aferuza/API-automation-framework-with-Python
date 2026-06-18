@@ -1,5 +1,6 @@
 import re
 
+
 def build_repo_endpoint(owner: str, repo: str) -> str:
     owner = owner.strip()
     repo = repo.strip()
@@ -7,11 +8,7 @@ def build_repo_endpoint(owner: str, repo: str) -> str:
 
 
 def build_collaborators_url(owner: str, repo: str, username: str) -> str:
-    """
-    REPO_COLLABORATORS = "/repos/{owner}/{repo}/collaborators/{username}"
-    Normalized with strip() + lower() since GitHub usernames/repo names are
-    case-insensitive for routing.
-    """
+
     return (
         f"/repos/{owner.strip().lower()}/{repo.strip().lower()}"
         f"/collaborators/{username.strip().lower()}"
