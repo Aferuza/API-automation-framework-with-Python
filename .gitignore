@@ -2,7 +2,7 @@
 .env
 
 # Python cache
-pycache/
+__pycache__/
 *.pyc
 
 # Virtual environment
@@ -13,7 +13,6 @@ env/
 # IDE / Editor
 .vscode/
 .idea/
-__pycache__/
 
 # OS files
 .DS_Store
@@ -24,3 +23,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Build / packaging artifacts
+*.egg-info/
+build/
+dist/
+
+# Test reports
+reports/
+results/

@@ -1,23 +1,20 @@
 import pytest
 from src.validation.schemas.schema_validator import assert_valid_schema
-from src.api.endpoints import USER_REPOS, REPO
+from src.api.endpoints import REPO
 from src.utils.config import GITHUB_USERNAME, GITHUB_REPO, PERFORMANCE_THRESHOLD
 
 
 @pytest.mark.usefixtures("managed_repo")
 class TestRepoLifecycle:
 
-    def test_create_repo(self, client, repo_schema):
-        response = client.post(USER_REPOS, body={
-            "name": GITHUB_REPO,
-            "description": "Created by API automation framework",
-            "private": False,
-            "auto_init": True
-        })
-
-        if response["status_code"] != 201:
-            print("GITHUB ERROR BODY:", response["json"])
-            print("GITHUB_REPO value:", repr(GITHUB_REPO))
+    def test_create_repo(self, managed_repo, repo_schema):
+        """
+        Asserts against the repo created by the managed_repo fixture.
+        Does NOT call POST itself — the fixture owns creation. Re-creating
+        here would hit GitHub's "name already exists" 422, since the
+        fixture already claimed this repo name for the module.
+        """
+        response = managed_repo  # the create_response yielded by the fixture
 
         assert response["status_code"] == 201, (
             f"Expected 201 Created, got {response['status_code']}"
@@ -89,4 +86,3 @@ class TestRepoLifecycle:
             f"Response too slow: {response['response_time']:.3f}s "
             f"(threshold: {PERFORMANCE_THRESHOLD}s)"
         )
-
