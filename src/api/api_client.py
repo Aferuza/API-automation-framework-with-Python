@@ -19,7 +19,8 @@ class APIClient:
 
     def _safe_json(self, response: requests.Response) -> dict:
         """
-        Parses the response body as JSON, returning an empty dict if there is no body.
+        Parses the response body as JSON, returning an empty dict if
+        there is no body.
 
         Why this exists:
             DELETE /repos/{owner}/{repo} returns 204 No Content — an empty body.
@@ -33,46 +34,85 @@ class APIClient:
         except Exception:
             return {}
 
+    def _format_log_line(
+        self, method: str, endpoint: str, status_code: int, elapsed: float
+    ) -> str:
+        """
+        Produces a consistent, aligned log line for every request outcome.
+
+        Same format for success and error paths so CI logs are greppable
+        and tools like Datadog/Kibana can parse them with one pattern.
+
+        Example:
+            [GET   ] /user -> 200 (0.312s)
+            [POST  ] /user/repos -> 422 (0.196s)
+            [DELETE] /repos/Aferuza/my-test-repo -> 204 (0.360s)
+        """
+        method_padded = method.upper().ljust(6)
+        return f"[{method_padded}] {endpoint} -> {status_code} ({elapsed:.3f}s)"
+
     def request(self, method: str, endpoint: str, body=None) -> dict:
         url = f"{self.base_url}{endpoint}"  # Build full URL: base + path
-        start = time.time()                 # Start timer before the request is sent
+
+        # perf_counter: monotonic clock — correct for measuring elapsed duration.
+        # time.time() measures wall-clock time and can jump backward or forward
+        # due to NTP sync or DST, producing incorrect elapsed values.
+        start = time.perf_counter()
 
         try:
             response = self.session.request(
                 method, url, json=body, timeout=self.timeout
-                # json=body: serializes body dict to JSON and sets Content-Type automatically
-                # timeout: raises Timeout if the server doesn't respond in time
+                # json=body: serializes body dict to JSON and sets
+                #            Content-Type: application/json automatically
+                # timeout:   raises Timeout if server doesn't respond in time
             )
-            elapsed = time.time() - start  # Capture round-trip duration
+            elapsed = time.perf_counter() - start
 
-            # Log outcome — error level for 4xx/5xx, info for success
-            # This appears in your terminal with -s and in log files in CI
+            log_line = self._format_log_line(
+                method, endpoint, response.status_code, elapsed
+            )
+
+            # Error level for 4xx/5xx so CI log scanners can filter failures
+            # without reading every INFO line
             if response.status_code >= 400:
-                self.logger.error(
-                    f"HTTP ERROR {method} {endpoint} -> {response.status_code}"
-                )
+                self.logger.error(log_line)
             else:
-                self.logger.info(
-                    f"{method} {endpoint} -> {response.status_code} ({elapsed:.3f}s)"
-                )
+                self.logger.info(log_line)
 
             return {
+                # int — HTTP status code, used in every test assertion
                 "status_code": response.status_code,
-                "json": self._safe_json(response),  # Response body — NOT the request body
-                "headers": dict(response.headers),  # Cast to plain dict for easy assertions
-                "response_time": elapsed            # Used in performance threshold tests
+
+                # dict — response body parsed from JSON.
+                # NOT the request body. _safe_json returns {} for
+                # empty bodies (e.g. 204 DELETE) instead of crashing.
+                "json": self._safe_json(response),
+
+                # dict — cast from CaseInsensitiveDict to plain dict.
+                # Used for rate limit assertions and header contract checks.
+                "headers": dict(response.headers),
+
+                # float — round-trip duration in seconds.
+                # Used in performance threshold tests:
+                #   assert response["response_time"] < PERFORMANCE_THRESHOLD
+                "response_time": elapsed
             }
 
         except requests.exceptions.Timeout:
-            # Server took longer than self.timeout seconds — log and re-raise
-            # Re-raising lets pytest mark the test as ERROR (not FAILED) with a clear message
-            self.logger.error(f"TIMEOUT {method} {endpoint}")
+            # Server took longer than self.timeout seconds.
+            # Re-raising lets pytest mark the test as ERROR (not FAILED)
+            # with a clear traceback rather than swallowing the exception.
+            self.logger.error(
+                f"[{'TIMEOUT'.ljust(6)}] {endpoint} -> TIMEOUT"
+            )
             raise
 
         except requests.exceptions.ConnectionError:
-            # Network unreachable, DNS failure, refused connection
-            # Raised when the request never reaches the server at all
-            self.logger.error(f"CONNECTION ERROR {method} {endpoint}")
+            # Network unreachable, DNS failure, or refused connection.
+            # Raised when the request never reaches the server at all.
+            self.logger.error(
+                f"[{'CONN ERR'.ljust(6)}] {endpoint} -> CONNECTION ERROR"
+            )
             raise
 
     # ── Convenience Methods ───────────────────────────────────────────────────
