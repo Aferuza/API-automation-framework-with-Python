@@ -38,6 +38,7 @@ def repo_schema():
 
 
 @pytest.fixture(scope="module")
+# fixture depending on another fixture 
 def managed_repo(client):
     repo_endpoint = REPO.format(owner=GITHUB_USERNAME, repo=GITHUB_REPO)
 

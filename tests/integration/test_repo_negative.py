@@ -5,7 +5,7 @@ from src.utils.config import GITHUB_REPO
 from src.api.api_client import APIClient
 
 
-class NegativeTests():
+class TestNegative():
     # 1. Invalid authentication
     def test_get_user_with_invalid_token(self):
         bad_client = APIClient(token="ghp_thisisafaketoken")
