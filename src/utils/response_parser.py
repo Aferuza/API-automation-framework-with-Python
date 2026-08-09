@@ -3,8 +3,6 @@ from src.utils.assertion_helpers import assert_fields_match
 
 class ResponseParser:
     """
-    Wraps the dict returned by APIClient.request() and provides a
-    readable, chainable interface for interpreting API responses.
 
     Why this exists:
         APIClient's job is transport — send a request, hand back a plain
