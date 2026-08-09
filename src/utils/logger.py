@@ -1,12 +1,17 @@
 import logging
+import os
 
-# Configure global logging format and level
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+VALID_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+if LOG_LEVEL not in VALID_LEVELS:
+    raise ValueError(
+        f"Invalid LOG_LEVEL '{LOG_LEVEL}'. Must be one of: {', '.join(sorted(VALID_LEVELS))}"
+    )
+
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
+    level=LOG_LEVEL,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 )
 
-# Create a reusable logger instance
 logger = logging.getLogger(__name__)
-
-

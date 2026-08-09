@@ -1,3 +1,4 @@
+# pyproject.toml
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
@@ -6,9 +7,16 @@ build-backend = "setuptools.build_meta"
 name = "api-automation-framework"
 version = "0.1.0"
 description = "API test automation framework"
+requires-python = ">=3.11"
 dependencies = [
     "requests",
-    "pytest"
+    "httpx",
+    "python-dotenv",
+    "pydantic",
+    "jsonschema",
+    "pytest",
+    "pytest-html",
+    "responses",
 ]
 
 [tool.setuptools.packages.find]

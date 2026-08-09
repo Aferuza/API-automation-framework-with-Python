@@ -44,8 +44,9 @@ def managed_repo(client):
     # Defensive cleanup: if a prior run crashed mid-suite (CI timeout,
     # killed process, etc.), the yield-based teardown below never ran.
     # Delete first so create() below always starts from a clean slate.
-    # A 404 here is expected and fine — nothing to clean up.
-    client.delete(repo_endpoint)
+    # A 404 here is expected and fine — nothing to clean up — so it's
+    # excluded from ERROR logging via quiet_statuses.
+    client.delete(repo_endpoint, quiet_statuses=(404,))
 
     create_response = client.post(USER_REPOS, body={
         "name": GITHUB_REPO,
