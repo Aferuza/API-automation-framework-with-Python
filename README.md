@@ -394,6 +394,15 @@ Step 5 — Reports
 | `test_delete_repo` | `DELETE /repos/{owner}/{repo}` | 204 | Empty body, repo removed |
 | `test_repo_performance` | `GET /repos/{owner}/{repo}` | < 1.5s | Response within threshold |
 
+**`TestNegative` — Error handling and edge cases**
+
+| Test | HTTP Call | Expected | What's Validated |
+|---|---|---|---|
+| `test_get_user_with_invalid_token` | `GET /user` | 401 | Invalid credentials rejected cleanly |
+| `test_create_duplicate_repo` | `POST /user/repos` | 422 | Duplicate repo name correctly rejected |
+| `test_get_nonexistent_repo` | `GET /repos/{owner}/{repo}` | 404 | Missing resource returns proper error |
+| `test_create_repo_without_name` | `POST /user/repos` | 422 | Missing required field caught by API |
+
 ---
 
 ## Setup
@@ -445,4 +454,4 @@ Six years in QA, based in the Bay Area. I care about backend quality, API contra
 
 I build this kind of test coverage for early-stage SaaS and AI startups who have a working product but no dedicated QA yet. If that's you, feel free to reach out.
 
-And if you have questions about any architectural decision in this repo, I would genuinely enjoy that conversation.
+If you have questions about any architectural decision in this repo, I'd genuinely enjoy that conversation.
