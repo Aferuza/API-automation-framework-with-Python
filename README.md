@@ -275,7 +275,8 @@ The `user_schema.json` in this framework was built from a **live `GET /user` res
 > `additionalProperties: true` is intentional — GitHub adds new fields over time. This schema protects against **removals and type changes**, not additions.
 
 "Catching a Real Contract Break"
-Screenshot 2026-08-28 at 7.58.59 PM.png
+<img width="649" height="664" alt="Screenshot 2026-08-28 at 8 15 12 PM" src="https://github.com/user-attachments/assets/4559eb91-895c-4387-9d3a-05d263a87f5d" />
+
 ---
 
 ## CI/CD Pipeline — GitHub Actions
