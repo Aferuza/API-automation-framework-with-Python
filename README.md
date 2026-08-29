@@ -1,7 +1,8 @@
 ![CI](https://github.com/Aferuza/API-automation-framework-with-Python/actions/workflows/ci.yml/badge.svg)
 
 # API Automation Framework — Python + pytest + GitHub Actions
-<img width="1377" height="868" alt="image" src="https://github.com/user-attachments/assets/6d58821b-21af-4ff1-a4f1-d4b15239b84a" />
+<img width="1490" height="858" alt="Screenshot 2026-08-28 at 8 07 51 PM" src="https://github.com/user-attachments/assets/f2e4afe2-cb47-4fe1-b44a-2c5518d74b8e" />
+
 
 
 ## Why I Built This
