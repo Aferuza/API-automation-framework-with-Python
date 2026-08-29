@@ -127,21 +127,12 @@ API-automation-framework-with-Python/
 ├── tests/
 │   ├── mocked/
 │   │   ├── conftest.py                # mock_client fixture — no real credentials needed
-│   │   └── test_users_api_mocked.py  # 200, 401, 403, 500 scenarios via requests-mock
+│   │   └── test_users_api_mocked.py   # 200, 401, 403, 500 scenarios via requests-mock
 │   ├── unit/
 │   │   └── test_auth_client.py        # Unit tests for auth header construction
 │   ├── integration/
-│   │   └── test_repo_lifecycle.py     # Full CRUD lifecycle against real GitHub API
+│   │   ├── test_repo_lifecycle.py     # Full CRUD lifecycle against real GitHub API
 │   │   └── test_repo_negative.py      # Error paths: invalid auth, duplicates, 404s, missing fields
-
-**`TestNegative` — Error handling and edge cases**
-
-| Test                              | HTTP Call                      | Expected | What's Validated                          |
-| ---------------------------------- | ------------------------------- | -------- | ------------------------------------------ |
-| `test_get_user_with_invalid_token` | `GET /user`                     | 401      | Invalid credentials rejected cleanly       |
-| `test_create_duplicate_repo`       | `POST /user/repos`              | 422      | Duplicate repo name correctly rejected     |
-| `test_get_nonexistent_repo`        | `GET /repos/{owner}/{repo}`     | 404      | Missing resource returns proper error      |
-| `test_create_repo_without_name`    | `POST /user/repos`              | 422      | Missing required field caught by API       |
 │   └── conftest.py                    # Global fixtures — skips live tests if no creds
 │
 ├── reports/                           # Generated HTML test reports
@@ -153,7 +144,6 @@ API-automation-framework-with-Python/
 ├── requirements.txt                   # All dependencies
 └── .env                               # Local secrets — never committed
 ```
-
 ---
 
 ## The APIClient — Injectable, Not Hardcoded
@@ -284,8 +274,6 @@ The `user_schema.json` in this framework was built from a **live `GET /user` res
 > `additionalProperties: true` is intentional — GitHub adds new fields over time. This schema protects against **removals and type changes**, not additions.
 
 ## Catching a Real Contract Break
-
-[#catching-a-real-contract-break](#catching-a-real-contract-break)
 
 Schema validation only matters if it actually catches something. So I broke it on purpose.
 
@@ -453,10 +441,8 @@ pytest tests/ -v --html=reports/report.html --self-contained-html
 
 ## About Me
 
-[#about-me](#about-me)
-
 Six years in QA, based in the Bay Area. I care about backend quality, API contract testing, and the intersection of DevOps and test automation. I built this framework because I wanted a portfolio project I could actually be proud of — one that reflects how I think about engineering, not just how I write tests.
 
 I build this kind of test coverage for early-stage SaaS and AI startups who have a working product but no dedicated QA yet. If that's you, feel free to reach out.
 
-And if f you have questions about any architectural decision in this repo, I would genuinely enjoy that conversation.
+And if you have questions about any architectural decision in this repo, I would genuinely enjoy that conversation.
