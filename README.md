@@ -2,8 +2,7 @@
 
 # API Automation Framework — Python + pytest + GitHub Actions
 <img width="1490" height="858" alt="Screenshot 2026-08-28 at 8 07 51 PM" src="https://github.com/user-attachments/assets/f2e4afe2-cb47-4fe1-b44a-2c5518d74b8e" />
-
-
+*Full suite passing — 32 tests across unit, mocked, and live integration layers, run against the real GitHub API.*
 
 ## Why I Built This
 
@@ -133,6 +132,16 @@ API-automation-framework-with-Python/
 │   │   └── test_auth_client.py        # Unit tests for auth header construction
 │   ├── integration/
 │   │   └── test_repo_lifecycle.py     # Full CRUD lifecycle against real GitHub API
+│   │   └── test_repo_negative.py      # Error paths: invalid auth, duplicates, 404s, missing fields
+
+**`TestNegative` — Error handling and edge cases**
+
+| Test                              | HTTP Call                      | Expected | What's Validated                          |
+| ---------------------------------- | ------------------------------- | -------- | ------------------------------------------ |
+| `test_get_user_with_invalid_token` | `GET /user`                     | 401      | Invalid credentials rejected cleanly       |
+| `test_create_duplicate_repo`       | `POST /user/repos`              | 422      | Duplicate repo name correctly rejected     |
+| `test_get_nonexistent_repo`        | `GET /repos/{owner}/{repo}`     | 404      | Missing resource returns proper error      |
+| `test_create_repo_without_name`    | `POST /user/repos`              | 422      | Missing required field caught by API       |
 │   └── conftest.py                    # Global fixtures — skips live tests if no creds
 │
 ├── reports/                           # Generated HTML test reports
@@ -274,8 +283,24 @@ The `user_schema.json` in this framework was built from a **live `GET /user` res
 
 > `additionalProperties: true` is intentional — GitHub adds new fields over time. This schema protects against **removals and type changes**, not additions.
 
-"Catching a Real Contract Break"
+## Catching a Real Contract Break
+
+[#catching-a-real-contract-break](#catching-a-real-contract-break)
+
+Schema validation only matters if it actually catches something. So I broke it on purpose.
+
+I changed the `user_schema.json` contract to expect `id` as a `string` instead of an `integer` — simulating what happens when an API's data type silently changes. The live GitHub API still returned `id` as an integer (`45316760`), exactly as before.
+
+A simple payload assertion like `assert response["json"]["id"] is not None` would have **passed** — the field is present, so the test is happy. It's blind to the type change.
+
+Schema validation caught it immediately:
+
 <img width="649" height="664" alt="Screenshot 2026-08-28 at 8 15 12 PM" src="https://github.com/user-attachments/assets/4559eb91-895c-4387-9d3a-05d263a87f5d" />
+
+*Schema said `id` should be a string. GitHub returned an integer. The framework failed loudly instead of shipping the mismatch downstream.*
+
+This is the failure mode schema validation exists to catch — and payload assertions can't.
+
 
 ---
 
@@ -428,6 +453,10 @@ pytest tests/ -v --html=reports/report.html --self-contained-html
 
 ## About Me
 
+[#about-me](#about-me)
+
 Six years in QA, based in the Bay Area. I care about backend quality, API contract testing, and the intersection of DevOps and test automation. I built this framework because I wanted a portfolio project I could actually be proud of — one that reflects how I think about engineering, not just how I write tests.
 
-If you have questions about any architectural decision in this repo, I would genuinely enjoy that conversation.
+I build this kind of test coverage for early-stage SaaS and AI startups who have a working product but no dedicated QA yet. If that's you, feel free to reach out.
+
+And if f you have questions about any architectural decision in this repo, I would genuinely enjoy that conversation.
