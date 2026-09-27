@@ -1,17 +1,20 @@
-import logging
-import os
+import logging, json, sys
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        return json.dumps({
+            "ts":self.formatTime(record,"%Y-%m-%dT%H:%M:%S"),
+            "level":record.levelname,
+            "logger":record.name,
+            "msg":record.getMessage(),
 
-VALID_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-if LOG_LEVEL not in VALID_LEVELS:
-    raise ValueError(
-        f"Invalid LOG_LEVEL '{LOG_LEVEL}'. Must be one of: {', '.join(sorted(VALID_LEVELS))}"
-    )
+        })
+handler =logging.StreamHandler(sys.stdout)
+handler.setFormatter(JsonFormatter())
 
-logging.basicConfig(
-    level=LOG_LEVEL,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-)
+logger = logging.getLogger("api_automation")
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
 
-logger = logging.getLogger(__name__)
+
+
