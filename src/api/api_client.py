@@ -1,5 +1,3 @@
-# src/api/api_client.py
-
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
