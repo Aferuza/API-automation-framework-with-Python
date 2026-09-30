@@ -8,14 +8,13 @@ from src.utils.logger import logger
 
 
 class RequestLogEntry:
-    """One recorded API call — built directly from data already computed in request(), no parsing."""
 
-    def __init__(self, method, endpoint, status_code, elapsed):
+    def __init__(self, method, endpoint, status_code, elapsed, level=None):
         self.method = method.upper()
         self.endpoint = endpoint
         self.status_code = status_code
         self.elapsed = elapsed
-        self.level = self._derive_level(status_code)
+        self.level = level or self._derive_level(status_code)
 
     @staticmethod
     def _derive_level(status_code):
@@ -30,7 +29,7 @@ class RequestLogEntry:
         return self.status_code >= 400
 
     def as_log_fields(self) -> dict:
-        """Structured fields for the JSON logger's extra= — individually queryable in Loki/jq."""
+
         return {
             "method": self.method,
             "endpoint": self.endpoint,
@@ -64,17 +63,6 @@ class APIClient:
         })
 
     def _safe_json(self, response: requests.Response) -> dict:
-        """
-        Parses the response body as JSON, returning an empty dict if
-        there is no body.
-
-        Why this exists:
-            DELETE /repos/{owner}/{repo} returns 204 No Content — an empty body.
-            Calling response.json() on an empty body raises JSONDecodeError.
-            This method handles that case gracefully so tests can always do:
-                assert response["json"] == {}
-            instead of crashing on 204 responses.
-        """
         try:
             return response.json()
         except Exception:
@@ -97,12 +85,24 @@ class APIClient:
             )
             elapsed = time.perf_counter() - start
 
-            entry = RequestLogEntry(method, endpoint, response.status_code, elapsed)
+            # Decide the REAL logged severity first, in one place — this is what
+            # actually gets passed to logger.error()/logger.info(). quiet_statuses
+            # lets callers suppress expected "errors" (e.g. a 404 on cleanup-delete
+            # that's expected and fine) from being logged as ERROR.
+            is_logged_as_error = (
+                    response.status_code >= 400
+                    and response.status_code not in quiet_statuses
+            )
+            level = "ERROR" if is_logged_as_error else "INFO"
+
+            # Pass that decided level into the entry explicitly, so entry.level
+            # (used in __repr__'s "[LEVEL]" prefix) always matches what actually
+            # gets logged — instead of RequestLogEntry re-deriving severity from
+            # the status code alone and disagreeing with quiet_statuses.
+            entry = RequestLogEntry(method, endpoint, response.status_code, elapsed, level=level)
             log_fields = entry.as_log_fields()
 
-            # quiet_statuses lets callers suppress expected "errors" from logging as
-            # ERROR — e.g. a 404 on cleanup-delete that's expected and fine.
-            if entry.is_error() and response.status_code not in quiet_statuses:
+            if is_logged_as_error:
                 self.logger.error(str(entry), extra=log_fields)
             else:
                 self.logger.info(str(entry), extra=log_fields)
