@@ -1,56 +1,99 @@
 import pytest
-from src.utils.string_validator import build_repo_endpoint, build_collaborators_url
+from src.utils.assertion_helpers import assert_fields_match
 
 
-class TestStringValidator:
+class TestAssertFieldsMatch:
 
-    def test_build_repo_endpoint(self):
-        result = build_repo_endpoint("Aferuza", "my-test-repo")
-        assert result == "/repos/Aferuza/my-test-repo"
+    def test_all_fields_match_no_exception(self):
+        actual = {"name": "my-repo", "visibility": "public"}
+        expected = {"name": "my-repo", "visibility": "public"}
+        # Should simply return None / not raise
+        assert assert_fields_match(actual, expected) is None
 
-    def test_strip_leading__and_trailing_whitespaces(self):
-        result = build_repo_endpoint("Aferuza", "my-test-repo")
-        assert result == "/repos/Aferuza/my-test-repo"
+    def test_extra_keys_in_actual_are_ignored(self):
+        # actual has more fields than expected — should still pass,
+        # since the function only checks that expected is a subset of actual
+        actual = {"name": "my-repo", "visibility": "public", "id": 12345}
+        expected = {"name": "my-repo"}
+        assert assert_fields_match(actual, expected) is None
 
-    def test_strip_whitespace_owner(self):
-        result = build_repo_endpoint("Aferuza", "my-test-repo")
-        assert result == "/repos/Aferuza/my-test-repo"
+    def test_empty_expected_never_raises(self):
+        # Vacuous truth: nothing to check, nothing to fail
+        actual = {"name": "my-repo"}
+        expected = {}
+        assert assert_fields_match(actual, expected) is None
 
-    def test_strip_whitespace_repo(self):
-        result = build_repo_endpoint("Aferuza", "my-test-repo")
-        assert result == "/repos/Aferuza/my-test-repo"
+    def test_missing_key_raises_assertion_error(self):
+        actual = {"name": "my-repo"}
+        expected = {"visibility": "public"}
 
-    def test_returns_string_type(self):
-        result = build_repo_endpoint("Aferuza", "my-test-repo")
-        assert isinstance(result, str)
+        with pytest.raises(AssertionError) as exc_info:
+            assert_fields_match(actual, expected, context="repo check")
 
-    def test_no_double_slashes(self):
-        result = build_repo_endpoint("Aferuza", "my-test-repo")
-        assert "//" not in result
+        message = str(exc_info.value)
+        assert "repo check" in message
+        assert "visibility" in message
 
-    def test_starts_with_repo(self):
-        result = build_repo_endpoint("Aferuza", "my-test-repo")
-        assert result.startswith("/repos/")
+    def test_value_mismatch_raises_assertion_error(self):
+        actual = {"visibility": "private"}
+        expected = {"visibility": "public"}
 
-    @pytest.mark.parametrize("owner, repo, expected", [
-        ("Aferuza", "my-test-repo", "/repos/Aferuza/my-test-repo"),
-        ("aferuzat", "Hello-World", "/repos/aferuzat/Hello-World"),
-        (" octocat ", " Hello-World ", "/repos/octocat/Hello-World"),
-        ("user123", "repo_with_underscores", "/repos/user123/repo_with_underscores"),
+        with pytest.raises(AssertionError) as exc_info:
+            assert_fields_match(actual, expected, context="visibility check")
+
+        message = str(exc_info.value)
+        assert "visibility check" in message
+        assert "public" in message
+        assert "private" in message
+
+    def test_context_defaults_to_empty_string(self):
+        # context is optional — make sure omitting it doesn't blow up,
+        # and that the error message is still readable without it
+        actual = {"name": "wrong"}
+        expected = {"name": "right"}
+
+        with pytest.raises(AssertionError) as exc_info:
+            assert_fields_match(actual, expected)
+
+        assert "name" in str(exc_info.value)
+
+    def test_type_mismatch_counts_as_a_failure(self):
+        # "5" != 5 in Python — document that this function does NOT coerce types.
+        # This matters for GitHub API responses where a field might come back
+        # as an int (e.g. id) vs. a string you hardcoded in a test fixture.
+        actual = {"count": "5"}
+        expected = {"count": 5}
+
+        with pytest.raises(AssertionError):
+            assert_fields_match(actual, expected)
+
+    def test_nested_dict_requires_exact_match_not_partial(self):
+        # Documents current behavior: if expected_value is itself a dict,
+        # equality is checked with ==, meaning the nested dict must match
+        # EXACTLY (extra keys inside the nested dict will fail the comparison).
+        # This is different from the top-level "subset" behavior tested above.
+        actual = {"owner": {"login": "Aferuza", "id": 1, "type": "User"}}
+        expected = {"owner": {"login": "Aferuza", "id": 1}}
+
+        with pytest.raises(AssertionError):
+            assert_fields_match(actual, expected)
+
+    @pytest.mark.parametrize("actual, expected", [
+        ({"a": 1, "b": 2}, {"a": 1}),
+        ({"a": 1, "b": 2}, {"a": 1, "b": 2}),
+        ({"a": None}, {"a": None}),
+        ({"a": 0}, {"a": 0}),
+        ({"a": False}, {"a": False}),
     ])
-    def test_various_owner_repo_combinations(self, owner, repo, expected):
-        assert build_repo_endpoint(owner, repo) == expected
+    def test_various_passing_combinations(self, actual, expected):
+        assert assert_fields_match(actual, expected) is None
 
-    def test_build_collaborators_url_single_case(self):
-        result = build_collaborators_url("Magicat", "My-tet-repo", "octocat")
-        assert result == "/repos/magicat/my-tet-repo/collaborators/octocat"
-
-    @pytest.mark.parametrize("owner, repo, username, expected", [
-        ("Magicat", "My-tet-repo", "octocat",
-         "/repos/magicat/my-tet-repo/collaborators/octocat"),
-        (" Aferuza ", " My_test_repo ", " OctoCat ",
-         "/repos/aferuza/my_test_repo/collaborators/octocat"),
+    @pytest.mark.parametrize("actual, expected, missing_key", [
+        ({}, {"a": 1}, "a"),
+        ({"b": 2}, {"a": 1}, "a"),
+        ({"a": 1}, {"a": 1, "b": 2}, "b"),
     ])
-    def test_build_collaborators_url_parametrized(self, owner, repo, username, expected):
-        result = build_collaborators_url(owner, repo, username)
-        assert result == expected
+    def test_various_missing_key_combinations(self, actual, expected, missing_key):
+        with pytest.raises(AssertionError) as exc_info:
+            assert_fields_match(actual, expected)
+        assert missing_key in str(exc_info.value)

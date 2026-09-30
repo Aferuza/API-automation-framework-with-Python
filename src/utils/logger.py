@@ -1,12 +1,22 @@
 import logging
+import json
+import sys
 
-# Configure global logging format and level
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
-)
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        return json.dumps({
+            "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
 
-# Create a reusable logger instance
-logger = logging.getLogger(__name__)
+        })
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(JsonFormatter())
+
+logger = logging.getLogger("api_automation")
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+
 
 

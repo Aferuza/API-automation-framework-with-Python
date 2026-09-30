@@ -1,7 +1,44 @@
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 import time
 import requests
 from src.utils.config import API_BASE_URL, AUTH_TOKEN, TIMEOUT
 from src.utils.logger import logger
+
+
+class RequestLogEntry:
+
+    def __init__(self, method, endpoint, status_code, elapsed, level=None):
+        self.method = method.upper()
+        self.endpoint = endpoint
+        self.status_code = status_code
+        self.elapsed = elapsed
+        self.level = level or self._derive_level(status_code)
+
+    @staticmethod
+    def _derive_level(status_code):
+        if status_code < 300:
+            return "INFO"
+        elif status_code < 400:
+            return "WARNING"
+        else:
+            return "ERROR"  # 4xx and 5xx both — CRITICAL is not for HTTP status
+
+    def is_error(self):
+        return self.status_code >= 400
+
+    def as_log_fields(self) -> dict:
+
+        return {
+            "method": self.method,
+            "endpoint": self.endpoint,
+            "status_code": self.status_code,
+            "elapsed": round(self.elapsed, 3),
+        }
+
+    def __repr__(self):
+        return f"[{self.level}] {self.method} {self.endpoint} -> {self.status_code} ({self.elapsed:.3f}s)"
 
 
 class APIClient:
@@ -12,46 +49,26 @@ class APIClient:
         self.logger = logger
 
         self.session = requests.Session()
+
+        retry = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        self.session.mount("https://", HTTPAdapter(max_retries=retry))
+
         self.session.headers.update({
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json"
         })
 
     def _safe_json(self, response: requests.Response) -> dict:
-        """
-        Parses the response body as JSON, returning an empty dict if
-        there is no body.
-
-        Why this exists:
-            DELETE /repos/{owner}/{repo} returns 204 No Content — an empty body.
-            Calling response.json() on an empty body raises JSONDecodeError.
-            This method handles that case gracefully so tests can always do:
-                assert response["json"] == {}
-            instead of crashing on 204 responses.
-        """
         try:
             return response.json()
         except Exception:
             return {}
 
-    def _format_log_line(
-        self, method: str, endpoint: str, status_code: int, elapsed: float
-    ) -> str:
-        """
-        Produces a consistent, aligned log line for every request outcome.
-
-        Same format for success and error paths so CI logs are greppable
-        and tools like Datadog/Kibana can parse them with one pattern.
-
-        Example:
-            [GET   ] /user -> 200 (0.312s)
-            [POST  ] /user/repos -> 422 (0.196s)
-            [DELETE] /repos/Aferuza/my-test-repo -> 204 (0.360s)
-        """
-        method_padded = method.upper().ljust(6)
-        return f"[{method_padded}] {endpoint} -> {status_code} ({elapsed:.3f}s)"
-
-    def request(self, method: str, endpoint: str, body=None) -> dict:
+    def request(self, method: str, endpoint: str, body=None, quiet_statuses: tuple = ()) -> dict:
         url = f"{self.base_url}{endpoint}"  # Build full URL: base + path
 
         # perf_counter: monotonic clock — correct for measuring elapsed duration.
@@ -68,16 +85,27 @@ class APIClient:
             )
             elapsed = time.perf_counter() - start
 
-            log_line = self._format_log_line(
-                method, endpoint, response.status_code, elapsed
+            # Decide the REAL logged severity first, in one place — this is what
+            # actually gets passed to logger.error()/logger.info(). quiet_statuses
+            # lets callers suppress expected "errors" (e.g. a 404 on cleanup-delete
+            # that's expected and fine) from being logged as ERROR.
+            is_logged_as_error = (
+                    response.status_code >= 400
+                    and response.status_code not in quiet_statuses
             )
+            level = "ERROR" if is_logged_as_error else "INFO"
 
-            # Error level for 4xx/5xx so CI log scanners can filter failures
-            # without reading every INFO line
-            if response.status_code >= 400:
-                self.logger.error(log_line)
+            # Pass that decided level into the entry explicitly, so entry.level
+            # (used in __repr__'s "[LEVEL]" prefix) always matches what actually
+            # gets logged — instead of RequestLogEntry re-deriving severity from
+            # the status code alone and disagreeing with quiet_statuses.
+            entry = RequestLogEntry(method, endpoint, response.status_code, elapsed, level=level)
+            log_fields = entry.as_log_fields()
+
+            if is_logged_as_error:
+                self.logger.error(str(entry), extra=log_fields)
             else:
-                self.logger.info(log_line)
+                self.logger.info(str(entry), extra=log_fields)
 
             return {
                 # int — HTTP status code, used in every test assertion
@@ -115,6 +143,15 @@ class APIClient:
             )
             raise
 
+        except requests.exceptions.RetryError:
+            # urllib3's Retry policy exhausted all attempts (default
+            # raise_on_status=True) — surfaces as an exception rather than
+            # a normal response, same treatment as Timeout/ConnectionError.
+            self.logger.error(
+                f"[{'MAX RETRY'.ljust(6)}] {endpoint} -> RETRIES EXHAUSTED"
+            )
+            raise
+
     # ── Convenience Methods ───────────────────────────────────────────────────
     # Thin wrappers around request() — give tests a clean, readable interface.
     # Tests call client.get("/user") instead of client.request("GET", "/user").
@@ -131,6 +168,6 @@ class APIClient:
         """Sends a PATCH request. Used to partially update existing resources."""
         return self.request("PATCH", endpoint, body)
 
-    def delete(self, endpoint: str) -> dict:
+    def delete(self, endpoint: str, quiet_statuses: tuple = ()) -> dict:
         """Sends a DELETE request. Used to remove resources."""
-        return self.request("DELETE", endpoint)
+        return self.request("DELETE", endpoint, quiet_statuses=quiet_statuses)

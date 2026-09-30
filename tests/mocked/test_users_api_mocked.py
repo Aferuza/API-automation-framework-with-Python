@@ -1,3 +1,4 @@
+import requests
 import responses
 import pytest
 from src.api.endpoints import USER, USER_REPOS
@@ -56,7 +57,8 @@ class TestAuthMocked:
     def test_github_server_error_returns_500(self, mock_client):
         """
         What does your APIClient do when GitHub is down?
-        You can only test this with a mock.
+        With retry logic in place, a persistent 500 exhausts retries
+        and raises RetryError rather than returning a response.
         """
         responses.add(
             method=responses.GET,
@@ -64,5 +66,5 @@ class TestAuthMocked:
             json={"message": "Internal Server Error"},
             status=500
         )
-        response = mock_client.get("/user")
-        assert response["status_code"] == 500
+        with pytest.raises(requests.exceptions.RetryError):
+            mock_client.get("/user")
