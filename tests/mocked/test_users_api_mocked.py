@@ -23,10 +23,7 @@ class TestAuthMocked:
 
     @responses.activate
     def test_invalid_token_returns_401(self, mock_client):
-        """
-        This is the test you asked about earlier.
-        Mock lets you test auth failure WITHOUT a real bad token.
-        """
+
         responses.add(
             method=responses.GET,
             url=f"{BASE}/user",
@@ -39,10 +36,7 @@ class TestAuthMocked:
 
     @responses.activate
     def test_rate_limit_returns_403(self, mock_client):
-        """
-        You can NEVER reliably test this against the real API.
-        Mocking is the ONLY correct approach here.
-        """
+
         responses.add(
             method=responses.GET,
             url=f"{BASE}/user",
@@ -55,11 +49,7 @@ class TestAuthMocked:
 
     @responses.activate
     def test_github_server_error_returns_500(self, mock_client):
-        """
-        What does your APIClient do when GitHub is down?
-        With retry logic in place, a persistent 500 exhausts retries
-        and raises RetryError rather than returning a response.
-        """
+
         responses.add(
             method=responses.GET,
             url=f"{BASE}/user",

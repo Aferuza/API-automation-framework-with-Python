@@ -8,7 +8,7 @@ from src.api.api_client import APIClient
 class TestNegative():
 
     def test_get_user_with_invalid_token(self):
-        bad_client = APIClient(token="ghp_thisisafaketoken")
+        bad_client = APIClient(base_url="https://api.github.com", token="ghp_thisisafaketoken")
         response = bad_client.get("/user")
         assert response["status_code"] == 401
 
