@@ -152,9 +152,6 @@ class APIClient:
             )
             raise
 
-    # ── Convenience Methods ───────────────────────────────────────────────────
-    # Thin wrappers around request() — give tests a clean, readable interface.
-    # Tests call client.get("/user") instead of client.request("GET", "/user").
 
     def get(self, endpoint: str) -> dict:
         """Sends a GET request. Used to read/fetch resources."""
