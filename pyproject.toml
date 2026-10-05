@@ -16,6 +16,7 @@ dependencies = [
     "pytest",
     "pytest-html",
     "responses",
+    "selenium>=4.20,<5",
 ]
 
 [tool.setuptools.packages.find]

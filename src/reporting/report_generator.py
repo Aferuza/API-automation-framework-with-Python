@@ -1,34 +1,15 @@
-from jinja2 import Template
+"""Report path helpers; pytest-html renders test outcomes and details."""
+
+from datetime import datetime
 from pathlib import Path
 
-# Simple HTML template for test report
-HTML_TEMPLATE = """
-<html>
-<head><title>API Test Report</title></head>
-<body>
-<h1>API Test Results</h1>
-<p>Status: {{ status }}</p>
-<p>Response Time: {{ time }}</p>
-</body>
-</html>
-"""
 
-# Generate HTML report from test results
-def generate_report(status, time):
-    template = Template(HTML_TEMPLATE)
+ROOT = Path(__file__).resolve().parents[2]
+REPORTS_DIR = ROOT / "reports"
 
-    # Render template with dynamic values
-    html = template.render(status=status, time=time)
 
-    # Ensure results directory exists
-    Path("results").mkdir(exist_ok=True)
-
-    # Write report to file
-    with open("results/report.html", "w") as f:
-        f.write(html)
-
-# FIX: Pass arguments to the function call
-# In a real scenario, these values would come from your test execution logic
-if __name__ == "__main__":
-    generate_report("Passed", "120ms")
-
+def create_timestamped_report_path() -> Path:
+    """Create the reports directory and return a unique HTML report path."""
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S-%f")
+    return REPORTS_DIR / f"test-report-{timestamp}.html"
