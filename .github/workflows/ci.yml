@@ -39,18 +39,14 @@ jobs:
         run: pip install -e .
 
       - name: Run mocked and unit tests
-        run: |
-          mkdir -p reports
-          pytest tests/mocked/ tests/unit/ -v --tb=short \
-            --html=reports/mocked-report.html \
-            --self-contained-html
+        run: pytest tests/mocked/ tests/unit/ -v --tb=short
 
       - name: Upload mocked test report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mocked-test-report
-          path: reports/mocked-report.html
+          path: reports/latest-report.html
 
 
   integration-tests:
@@ -78,15 +74,11 @@ jobs:
         run: pip install -e .
 
       - name: Run integration tests
-        run: |
-          mkdir -p reports
-          pytest tests/integration/ -v --tb=short \
-            --html=reports/integration-report.html \
-            --self-contained-html
+        run: pytest tests/integration/ -v --tb=short
 
       - name: Upload integration test report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: integration-test-report
-          path: reports/integration-report.html
+          path: reports/latest-report.html

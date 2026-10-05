@@ -122,7 +122,7 @@ API-automation-framework-with-Python/
 │   │       ├── user_schema.json       # JSON Schema contract for GET /user
 │   │       └── repo_schema.json       # JSON Schema contract for GET /repos/{owner}/{repo}
 │   └── reporting/
-│       └── report_generator.py        # HTML report builder
+│       └── report_generator.py        # Timestamped report path helper for pytest-html
 │
 ├── tests/
 │   ├── mocked/
@@ -134,6 +134,9 @@ API-automation-framework-with-Python/
 │   │   ├── test_repo_lifecycle.py     # Full CRUD lifecycle against real GitHub API
 │   │   └── test_repo_negative.py      # Error paths: invalid auth, duplicates, 404s, missing fields
 │   └── conftest.py                    # Global fixtures — skips live tests if no creds
+│
+├── src/ui/pages/
+│   └── github_repository_page.py      # UI check for API-created public repositories
 │
 ├── reports/                           # Generated HTML test reports
 ├── results/                           # Raw JSON results
@@ -433,7 +436,7 @@ PERFORMANCE_THRESHOLD=1.5
 **3. Run the tests**
 
 ```bash
-# Full suite + HTML report
+# Full suite + timestamped HTML report in reports/
 python run_tests.py
 
 # Mocked tests only — no credentials needed
@@ -442,9 +445,25 @@ pytest tests/mocked/ tests/unit/ -v
 # Integration tests only
 pytest tests/integration/ -v
 
-# With HTML report
-pytest tests/ -v --html=reports/report.html --self-contained-html
+# Any direct pytest run also overwrites reports/latest-report.html
+pytest tests/ -v
 ```
+
+The self-contained HTML report includes both passed and failed test cases.
+Use `python run_tests.py tests/unit/` to create a timestamped report for a
+specific selection. CI uploads the same `reports/latest-report.html` artifact
+for its mocked/unit and live integration jobs.
+
+The repository lifecycle integration test `test_get_repo` reads the new
+repository through the GitHub API, takes its `html_url` from that API response,
+opens that exact URL in headless Chrome, and checks that the visible `h1`
+contains the configured repository name. Selenium Manager resolves the browser
+driver; set `UI_HEADLESS=false` to watch the browser locally.
+
+After that browser-backed test finishes, its screenshot is saved under
+`reports/screenshots/` and embedded in its HTML report entry. This check runs
+with `pytest tests/integration/ -v` when GitHub credentials are configured; it
+is skipped along with the live API integration tests when credentials are absent.
 
 ---
 

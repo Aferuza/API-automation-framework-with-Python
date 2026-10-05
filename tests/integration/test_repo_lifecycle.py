@@ -2,6 +2,7 @@ import pytest
 from src.validation.schemas.schema_validator import assert_valid_schema
 from src.api.endpoints import REPO
 from src.utils.config import GITHUB_USERNAME, GITHUB_REPO, PERFORMANCE_THRESHOLD
+from src.ui.pages.github_repository_page import GitHubRepositoryPage
 
 
 @pytest.mark.usefixtures("managed_repo")
@@ -27,7 +28,8 @@ class TestRepoLifecycle:
         assert body["name"] == GITHUB_REPO, "Repo name mismatch"
         assert body["private"] is False,    "Repo should be public"
 
-    def test_get_repo(self, client, repo_schema):
+    @pytest.mark.ui
+    def test_get_repo(self, client, repo_schema, driver):
         """
         GET /repos/{owner}/{repo} — fetches repo metadata after creation.
         200 confirms the repo exists and the token has read access.
@@ -49,6 +51,14 @@ class TestRepoLifecycle:
         assert body["name"] == GITHUB_REPO, "Repo name mismatch"
         assert body["owner"]["login"] == GITHUB_USERNAME, (
             "Owner mismatch — wrong repo returned or token scoped to wrong account"
+        )
+
+        # The API says the repository is public; verify it is also reachable
+        # through GitHub's rendered repository page.
+        repository_page = GitHubRepositoryPage(driver).open(body["html_url"])
+        assert GITHUB_REPO in repository_page.heading, (
+            f"Repository page heading did not contain {GITHUB_REPO!r}: "
+            f"{repository_page.heading!r}"
         )
 
     def test_update_repo(self, client, repo_schema):

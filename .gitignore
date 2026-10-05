@@ -30,5 +30,7 @@ build/
 dist/
 
 # Test reports
-reports/
+reports/*.html
+reports/assets/
+reports/screenshots/
 results/

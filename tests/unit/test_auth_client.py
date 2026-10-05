@@ -1,7 +1,7 @@
 import pytest
 
 from src.api.endpoints import USER
-from tests.integration.test_repo_lifecycle import assert_valid_schema
+from src.validation.schemas.schema_validator import assert_valid_schema
 import src.utils.config
 from src.utils.config import PERFORMANCE_THRESHOLD
 
